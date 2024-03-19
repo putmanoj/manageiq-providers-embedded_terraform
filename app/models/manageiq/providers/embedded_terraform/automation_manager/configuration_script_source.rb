@@ -46,7 +46,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationSc
   def find_templates_in_git_repo
     template_dirs = {}
 
-    # checkout files to temp dir, we need for prasing input/output vars
+    # checkout files to temp dir, we need for parsing input/output vars
     git_checkout_tempdir = Dir.mktmpdir("terraform-git")
     checkout_git_repository(git_checkout_tempdir)
 
