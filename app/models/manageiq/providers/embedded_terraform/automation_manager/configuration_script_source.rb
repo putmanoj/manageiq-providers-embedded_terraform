@@ -40,13 +40,13 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationSc
   private
 
   # Find Terraform Templates(dir) in the git repo.
-  # Iterate throught git repo worktree, and collate all terraform template dir's (dirs with .tf or .tf.json files).
+  # Iterate through git repo worktree, and collate all terraform template dir's (dirs with .tf or .tf.json files).
   #
-  # Returns [hashmap] of template dirs and files within it.
-  def find_templates_in_git_repo()
+  # Returns [Hash] of template directories and files within it.
+  def find_templates_in_git_repo
     template_dirs = {}
 
-    # checkout files to temp dir, we need for prasing input/output vars
+    # checkout files to temp dir, we need for parsing input/output vars
     git_checkout_tempdir = Dir.mktmpdir("terraform-git")
     checkout_git_repository(git_checkout_tempdir)
 
@@ -59,7 +59,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationSc
         next unless filepath.end_with?(".tf", ".tf.json")
 
         parent_dir = File.dirname(filepath)
-        next if template_dirs.has_key?(parent_dir)
+        next if template_dirs.key?(parent_dir)
 
         full_path = File.join(git_checkout_tempdir, parent_dir)
         _log.info("Local full path : #{full_path}")
@@ -80,5 +80,4 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationSc
     end
     template_dirs
   end
-
 end
