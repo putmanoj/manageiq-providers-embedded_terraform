@@ -11,17 +11,20 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationSc
     transaction do
       current = configuration_script_payloads.index_by(&:name)
 
-      git_repository.update_repo
-      git_repository.with_worktree do |worktree|
-        worktree.ref = scm_branch
-        worktree.blob_list.each do |filename|
-          next if filename.start_with?(".") || !filename.end_with?(".tf")
+      templates = find_templates_in_git_repo
+      templates.each do |template_path, value|
+        _log.info("Template: #{template_path} => #{value.to_json}")
 
-          payload = worktree.read_file(filename)
-          found   = current.delete(filename) || self.class.module_parent::ConfigurationScriptPayload.new(:configuration_script_source_id => id)
+        found = current.delete(template_path) || self.class.module_parent::ConfigurationScriptPayload.new(:configuration_script_source_id => id)
 
-          found.update!(:name => filename, :manager_id => manager_id, :payload => payload, :payload_type => "json")
-        end
+        attrs = {
+          :name         => template_path,
+          :manager_id   => manager_id,
+          :payload      => value.to_json,
+          :payload_type => 'json'
+        }
+
+        found.update!(attrs)
       end
 
       current.values.each(&:destroy)
@@ -33,4 +36,51 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationSc
     update!(:status => "error", :last_updated_on => Time.zone.now, :last_update_error => error)
     raise error
   end
+
+  private
+
+  # Find Terraform Templates(dir) in the git repo.
+  # Iterate throught git repo worktree, and collate all terraform template dir's (dirs with .tf or .tf.json files).
+  #
+  # Returns [hashmap] of template dirs and files within it.
+  def find_templates_in_git_repo()
+    template_dirs = {}
+
+    # checkout files to temp dir, we need for prasing input/output vars
+    git_checkout_tempdir = Dir.mktmpdir("terraform-git")
+    checkout_git_repository(git_checkout_tempdir)
+
+    # traverse through files in git-worktree
+    git_repository.with_worktree do |worktree|
+      worktree.ref = scm_branch
+
+      # Find all dir's with .tf/.tf.json files
+      worktree.blob_list.each do |filepath|
+        next unless filepath.end_with?(".tf", ".tf.json")
+
+        parent_dir = File.dirname(filepath)
+        if !template_dirs.has_key?(parent_dir)
+          full_path = File.join(git_checkout_tempdir, parent_dir)
+          _log.info("Local full path : #{full_path}")
+          files = Dir.children(full_path)
+
+          # :TODO add parsing for input/output vars
+          input_vars = nil
+          output_vars = nil
+
+          template_dirs[parent_dir] = {
+            :relative_path => parent_dir,
+            :files         => files,
+            :input_vars    => input_vars,
+            :output_vars   => output_vars
+          }
+          _log.debug("=== Add Template:#{parent_dir} for #{filepath}")
+        else
+          _log.debug("=== Template:#{parent_dir} already added, no need to add again for #{filepath}")
+        end
+      end
+    end
+    template_dirs
+  end
+
 end
