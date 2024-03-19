@@ -75,7 +75,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationSc
           :input_vars    => input_vars,
           :output_vars   => output_vars
         }
-        _log.debug("=== Add Template:#{parent_dir} for #{filepath}")
+        _log.debug("=== Add Template:#{parent_dir}")
       end
     end
     template_dirs
