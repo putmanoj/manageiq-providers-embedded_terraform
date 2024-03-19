@@ -43,7 +43,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationSc
   # Iterate throught git repo worktree, and collate all terraform template dir's (dirs with .tf or .tf.json files).
   #
   # Returns [Hash] of template directories and files within it.
-  def find_templates_in_git_repo()
+  def find_templates_in_git_repo
     template_dirs = {}
 
     # checkout files to temp dir, we need for prasing input/output vars
