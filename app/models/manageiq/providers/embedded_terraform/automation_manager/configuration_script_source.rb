@@ -78,6 +78,10 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationSc
         _log.debug("=== Add Template:#{parent_dir}")
       end
     end
+
+    # cleanup temp git directory
+    FileUtils.rm_rf(git_checkout_tempdir)
+
     template_dirs
   end
 end
