@@ -80,5 +80,4 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationSc
     end
     template_dirs
   end
-
 end
