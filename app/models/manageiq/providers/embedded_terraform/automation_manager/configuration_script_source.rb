@@ -79,9 +79,9 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationSc
       end
     end
 
-    # cleanup temp git directory
-    FileUtils.rm_rf(git_checkout_tempdir)
-
     template_dirs
+  ensure
+    # cleanup temp git directory
+    FileUtils.rm_rf(git_checkout_tempdir) if git_checkout_tempdir
   end
 end
