@@ -59,25 +59,23 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationSc
         next unless filepath.end_with?(".tf", ".tf.json")
 
         parent_dir = File.dirname(filepath)
-        if !template_dirs.has_key?(parent_dir)
-          full_path = File.join(git_checkout_tempdir, parent_dir)
-          _log.info("Local full path : #{full_path}")
-          files = Dir.children(full_path)
+        next if template_dirs.has_key?(parent_dir)
 
-          # :TODO add parsing for input/output vars
-          input_vars = nil
-          output_vars = nil
+        full_path = File.join(git_checkout_tempdir, parent_dir)
+        _log.info("Local full path : #{full_path}")
+        files = Dir.children(full_path)
 
-          template_dirs[parent_dir] = {
-            :relative_path => parent_dir,
-            :files         => files,
-            :input_vars    => input_vars,
-            :output_vars   => output_vars
-          }
-          _log.debug("=== Add Template:#{parent_dir} for #{filepath}")
-        else
-          _log.debug("=== Template:#{parent_dir} already added, no need to add again for #{filepath}")
-        end
+        # :TODO add parsing for input/output vars
+        input_vars = nil
+        output_vars = nil
+
+        template_dirs[parent_dir] = {
+          :relative_path => parent_dir,
+          :files         => files,
+          :input_vars    => input_vars,
+          :output_vars   => output_vars
+        }
+        _log.debug("=== Add Template:#{parent_dir} for #{filepath}")
       end
     end
     template_dirs
