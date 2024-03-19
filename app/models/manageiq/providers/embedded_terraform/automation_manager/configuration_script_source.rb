@@ -59,7 +59,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationSc
         next unless filepath.end_with?(".tf", ".tf.json")
 
         parent_dir = File.dirname(filepath)
-        next if template_dirs.has_key?(parent_dir)
+        next if template_dirs.key?(parent_dir)
 
         full_path = File.join(git_checkout_tempdir, parent_dir)
         _log.info("Local full path : #{full_path}")
