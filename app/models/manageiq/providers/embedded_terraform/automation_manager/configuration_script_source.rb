@@ -37,6 +37,29 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationSc
     raise error
   end
 
+  # Return Template name, using relative_path's basename pre-fix,
+  #   and suffix with git-repo url details.
+  #   eg. basename(branch_name#hostname/path/relative_path_parent)
+  def self.template_name_from_git_repo_url(git_repo_url, branch_name, relative_path)
+    temp_url = git_repo_url
+    # URI library cannot handle git urls, so just convert it to a standard url.
+    temp_url = temp_url.sub(':', '/').sub('git@', 'https://') if temp_url.start_with?('git@')
+    temp_uri = URI.parse(temp_url)
+    hostname = temp_uri.hostname
+    path = temp_uri.path
+    path = path[0...-4] if path.end_with?('.git')
+    path = path[0...-5] if path.end_with?('.git/')
+    # if template dir is root, then use repo name as basename
+    if relative_path == '.'
+      basename = File.basename(path)
+      parent_path = ''
+    else
+      basename = File.basename(relative_path)
+      parent_path = File.dirname(relative_path)
+    end
+    "#{basename}(#{branch_name}##{hostname}#{path}/#{parent_path})"
+  end
+
   private
 
   # Find Terraform Templates(dir) in the git repo.
@@ -59,7 +82,11 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationSc
         next unless filepath.end_with?(".tf", ".tf.json")
 
         parent_dir = File.dirname(filepath)
-        next if template_dirs.key?(parent_dir)
+        name = ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationScriptSource.template_name_from_git_repo_url(
+          git_repository.url, scm_branch, parent_dir
+        )
+
+        next if template_dirs.key?(name)
 
         full_path = File.join(git_checkout_tempdir, parent_dir)
         _log.info("Local full path : #{full_path}")
@@ -69,13 +96,13 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationSc
         input_vars = nil
         output_vars = nil
 
-        template_dirs[parent_dir] = {
+        template_dirs[name] = {
           :relative_path => parent_dir,
           :files         => files,
           :input_vars    => input_vars,
           :output_vars   => output_vars
         }
-        _log.debug("=== Add Template:#{parent_dir}")
+        _log.debug("=== Add Template:#{name}")
       end
     end
 
