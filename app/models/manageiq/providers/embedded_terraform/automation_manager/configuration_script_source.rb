@@ -37,7 +37,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationSc
     raise error
   end
 
-  # Return Template name, using relative_path's basename pre-fix,
+  # Return Template name, using relative_path's basename prefix,
   #   and suffix with git-repo url details.
   #   eg. basename(branch_name#hostname/path/relative_path_parent)
   def self.template_name_from_git_repo_url(git_repo_url, branch_name, relative_path)
