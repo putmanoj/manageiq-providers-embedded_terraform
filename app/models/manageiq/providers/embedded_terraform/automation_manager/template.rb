@@ -5,8 +5,10 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Template < Mana
     n_('Template (Embedded Terraform)', 'Templates (Embedded Terraform)', number)
   end
 
-  def run(input_vars = {}, credentials = [], extra_options = {}, userid = "system")
-    _("Template.run| Run for #{userid} terraform-template: #{name}, with inputs: #{input_vars}")
+  def run(vars = {}, userid = "system")
+    _log.info("Template.run| Run for #{userid} terraform-template: #{name}, with inputs: #{vars}")
+
+    input_vars = vars[:input_vars] || {}
 
     payload_json = JSON.parse(payload)
     template_options = {
@@ -14,16 +16,19 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Template < Mana
       :template_relative_path         => payload_json['relative_path'],
     }
 
+    credentials = vars[:credentials] || []
+
     kwargs = {}
-    if extra_options.key?('execution_ttl')
-      kwargs[:timeout] = extra_options['execution_ttl'].to_i.minutes
+    if vars.key?('execution_ttl')
+      kwargs[:timeout] = vars['execution_ttl'].to_i.minutes
     end
-    if extra_options.key?('poll_interval')
-      kwargs[:poll_interval] = extra_options['poll_interval'].to_i.minutes
+    if vars.key?('poll_interval')
+      kwargs[:poll_interval] = vars['poll_interval'].to_i.minutes
     end
 
     _log.info("#{__method__}| with options: #{template_options}")
     _log.info("#{__method__}| with kwargs: #{kwargs}")
+    # _log.debug("#{__method__}| with credentials: #{credentials}")
 
     workflow = ManageIQ::Providers::TerraformTemplateWorkflow
     workflow.create_job(input_vars, template_options, credentials, **kwargs).tap(&:signal_start)

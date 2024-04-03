@@ -12,29 +12,58 @@ RSpec.describe(ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Templa
   context "#run" do
     describe "runs the referenced terraform template" do
       it "template.run" do
-        puts("launches template")
-        job = template.run({})
+        job = template.run
 
         expect(job).to(be_a(ManageIQ::Providers::TerraformTemplateWorkflow))
         expect(job.options[:input_vars]).to(eq({}))
         expect(job.options[:configuration_script_source_id]).to(eq(terraform_script_source.id))
         payload_json = JSON.parse(template.payload)
         expect(job.options[:template_relative_path]).to(eq(payload_json['relative_path']))
+        expect(job.options[:credentials]).to(eq([]))
         expect(job.options[:timeout]).to(eq(2.hours))
+        expect(job.options[:poll_interval]).to(eq(10.seconds))
       end
 
-      it "accepts inputs parameters to run template against" do
-        job = template.run({:some_key => :some_value})
+      it "accepts input_vars to run template against" do
+        job = template.run(:input_vars => {:some_key => :some_value})
 
         expect(job).to(be_a(ManageIQ::Providers::TerraformTemplateWorkflow))
         expect(job.options[:input_vars]).to(eq(:some_key => :some_value))
+
+        expect(job.options[:configuration_script_source_id]).to(eq(terraform_script_source.id))
+        payload_json = JSON.parse(template.payload)
+        expect(job.options[:template_relative_path]).to(eq(payload_json['relative_path']))
+        expect(job.options[:credentials]).to(eq([]))
+        expect(job.options[:timeout]).to(eq(2.hours))
+        expect(job.options[:poll_interval]).to(eq(10.seconds))
       end
 
       it "accepts credentials to run template against" do
-        job = template.run({}, [{:access_key => :some_key}])
+        job = template.run(:credentials => [{:access_key => :some_key}])
 
         expect(job).to(be_a(ManageIQ::Providers::TerraformTemplateWorkflow))
         expect(job.options[:credentials]).to(eq([{:access_key => :some_key}]))
+
+        expect(job.options[:input_vars]).to(eq({}))
+      end
+
+      it "accepts inputs_vars & credentials to run template against" do
+        job = template.run(:input_vars => {:some_key => :some_value}, :credentials => [{:access_key => :some_key}])
+
+        expect(job).to(be_a(ManageIQ::Providers::TerraformTemplateWorkflow))
+        expect(job.options[:input_vars]).to(eq(:some_key => :some_value))
+        expect(job.options[:credentials]).to(eq([{:access_key => :some_key}]))
+      end
+
+      it "passes execution_ttl to the job as its timeout" do
+        pending "Fix later, not passed to terraform-runner yet .."
+
+        job = template.run(:execution_ttl => "5")
+
+        expect(job).to(be_a(ManageIQ::Providers::TerraformTemplateWorkflow))
+        expect(job.options[:timeout]).to(eq(5.minutes))
+
+        expect(job.options[:input_vars]).to(eq({}))
       end
     end
   end

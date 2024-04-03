@@ -1,17 +1,13 @@
 class ManageIQ::Providers::TerraformRunnerWorkflow < Job
-  def self.create_job(input_vars, role_or_template_options, credentials = [],
+  def self.create_job(input_vars, role_or_template_options,
+                      credentials = [],
                       timeout: 2.hours, poll_interval: 10.seconds)
-    _log.debug("#{__method__}| input_vars: #{input_vars},
-      template_relative_path: #{role_or_template_options['template_relative_path']},
-      cloud_credential?: #{role_or_template_options.key?('cloud_credential')}")
-
-    role_or_template_options[:input_vars] = input_vars
-    role_or_template_options[:credentials] = credentials
-    role_or_template_options[:timeout] = timeout
-    role_or_template_options[:poll_interval] = poll_interval
-
-    _log.debug("#{__method__}| role_or_template_options: #{role_or_template_options}")
-    super(role_or_template_options)
+    super(role_or_template_options.merge(
+      :input_vars    => input_vars,
+      :credentials   => credentials,
+      :timeout       => timeout,
+      :poll_interval => poll_interval
+    ))
   end
 
   def current_job_timeout(_timeout_adjustment = 1)
@@ -30,7 +26,6 @@ class ManageIQ::Providers::TerraformRunnerWorkflow < Job
     verify_options
     prepare_repository
     route_signal(:execute)
-    queue_signal(:execute)
   end
 
   def launch_runner
@@ -38,7 +33,6 @@ class ManageIQ::Providers::TerraformRunnerWorkflow < Job
   end
 
   def execute
-    _log.info("#{__method__}| options: #{options}")
     response = launch_runner
 
     if response.nil?
@@ -171,12 +165,9 @@ class ManageIQ::Providers::TerraformRunnerWorkflow < Job
   end
 
   def prepare_repository
-    _log.info("#{__method__}| configuration_script_source_id #{options[:configuration_script_source_id]}")
     return unless options[:configuration_script_source_id]
 
-    _log.info("#{__method__}| before checkout_git_repository")
     checkout_git_repository
-    _log.info("#{__method__}| before adjust_options_for_git_checkout_tempdir")
     adjust_options_for_git_checkout_tempdir!
   end
 
@@ -185,12 +176,10 @@ class ManageIQ::Providers::TerraformRunnerWorkflow < Job
   end
 
   def checkout_git_repository
-    _log.info("#{__method__}| Checkout to git_checkout_tempdir: #{options[:git_checkout_tempdir]} for configuration_script_source_id: #{options[:configuration_script_source_id]}")
     css = ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationScriptSource.find(options[:configuration_script_source_id])
     options[:git_checkout_tempdir] = Dir.mktmpdir("terraform-runner-git")
     save!
     css.checkout_git_repository(options[:git_checkout_tempdir])
-    _log.info("#{__method__}| Checked out to git_checkout_tempdir: #{options[:git_checkout_tempdir]}")
   rescue MiqException::MiqUnreachableError => err
     miq_task.job.timeout!
     raise "Failed to connect with [#{err.class}: #{err}], job aborted"
