@@ -198,4 +198,61 @@ RSpec.describe(ManageIQ::Providers::TerraformTemplateWorkflow) do
       job.signal(:execute)
     end
   end
+
+  context "#poll_runner" do
+    let(:state)          { "running" }
+    let(:response_async) { Terraform::Runner::ResponseAsync.new(:base_dir => "/path/to/results") }
+
+    before do
+      allow(Terraform::Runner::ResponseAsync).to(receive(:new).and_return(response_async))
+
+      job.context[:terraform_runner_response] = response_async.dump
+      job.started_on = Time.now.utc
+      job.save!
+    end
+
+    it "terraform-runner completed" do
+      expect(response_async).to(receive(:running?).and_return(false))
+
+      response = Terraform::Runner::Response.new(:stack_id => "99999", **response_async.dump)
+      expect(response_async).to(receive(:response).and_return(response))
+      expect(job).to(receive(:queue_signal).with(:post_execute, :deliver_on => nil))
+
+      job.signal(:poll_runner)
+    end
+
+    it "terraform-runner still running" do
+      now = Time.now.utc
+      allow(Time).to(receive(:now).and_return(now))
+      expect(response_async).to(receive(:running?).and_return(true))
+      # expect(job).to(receive(:queue_signal).with(:poll_runner, :deliver_on => now + 1.second))
+
+      job.signal(:poll_runner)
+    end
+
+    it "fails if the template has been running too long" do
+      time = job.started_on + job.options[:timeout] + 5.minutes
+
+      Timecop.travel(time) do
+        expect(response_async).to(receive(:running?).and_return(true))
+        expect(response_async).to(receive(:stop))
+        expect(job).to(receive(:queue_signal).with(:abort, "terraform template has been running longer than timeout", "error", :deliver_on => nil))
+
+        job.signal(:poll_runner)
+      end
+    end
+
+    context "deliver_on" do
+      let(:options) { [{"some_key" => "some_value"}, {:template_path => "/path/to/template"}, [{"access_key" => "some_key"}]] }
+      let(:job_kwargs) { {:poll_interval => 5.minutes} }
+      it "uses the option to queue poll_runner" do
+        now = Time.now.utc
+        allow(Time).to receive(:now).and_return(now)
+        expect(response_async).to receive(:running?).and_return(true)
+        expect(job).to receive(:queue_signal).with(:poll_runner, :deliver_on => now + 5.minutes)
+
+        job.signal(:poll_runner)
+      end
+    end
+  end
 end
