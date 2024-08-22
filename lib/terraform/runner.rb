@@ -59,6 +59,28 @@ module Terraform
         retrieve_stack_job(stack_id)
       end
 
+      # Delete(destroy) the stack created by terraform-runner job, via terraform-runner api
+      #
+      # @param stack_id [String] stack_id from the terraforn-runner job
+      # @param template_path [String] Path to the template we will want to run
+      # @param input_vars [Hash] Hash with key/value pairs that will be passed as input variables to the
+      #        terraform-runner run
+      # @param credentials [Array] List of Authentication objects to provide to the terraform run
+      # @param env_vars [Hash] Hash with key/value pairs that will be passed as environment variables to the
+      #        terraform-runner run
+      # @return [Terraform::Runner::ResponseAsync] Response object of terraform-runner destroy action
+      def delete_async(stack_id, template_path, input_vars, credentials: [], env_vars: {})
+        _log.debug("Run delete_aysnc stack: #{stack_id}: with template #{template_path}")
+        response = delete_stack_job(
+          stack_id,
+          template_path,
+          :input_vars  => input_vars,
+          :credentials => credentials,
+          :env_vars    => env_vars
+        )
+        Terraform::Runner::ResponseAsync.new(stack_id)
+      end
+
       # =================================================
       # TerraformRunner Stack-API interaction methods
       # =================================================
@@ -142,6 +164,38 @@ module Terraform
         Terraform::Runner::Response.parsed_response(http_response)
       end
 
+      # Delete(destroy) stack created by TerraformRunner Stack Job
+      def delete_stack_job(
+        stack_id,
+        template_path,
+        input_vars: [],
+        credentials: [],
+        env_vars: {}
+      )
+        _log.info("start stack_job for template: #{template_path}")
+        tenant_id = stack_tenant_id
+        encoded_zip_file = encoded_zip_from_directory(template_path)
+
+        # TODO: use tags,env_vars
+        payload = {
+          :stack_id        => stack_id,
+          :cloud_providers => provider_connection_parameters(credentials),
+          :name            => name,
+          :tenantId        => tenant_id,
+          :templateZipFile => encoded_zip_file,
+          :parameters      => ApiParams.to_cam_parameters(input_vars)
+        }
+
+        http_response = terraform_runner_client.post(
+          "api/stack/delete",
+          *json_post_arguments(payload)
+        )
+        _log.debug("==== http_response.body: \n #{http_response.body}")
+        _log.info("stack_job for template: #{template_path} running ...")
+        Terraform::Runner::Response.parsed_response(http_response)
+      end
+
+
       # Retrieve TerraformRunner Stack Job details
       def retrieve_stack_job(stack_id)
         http_response = terraform_runner_client.post(
@@ -149,6 +203,16 @@ module Terraform
           *json_post_arguments({:stack_id => stack_id})
         )
         _log.info("==== Retrieve Stack Response: \n #{http_response.body}")
+        Terraform::Runner::Response.parsed_response(http_response)
+      end
+
+      # Cancel/Stop running TerraformRunner Stack Job
+      def cancel_stack_job(stack_id)
+        http_response = terraform_runner_client.post(
+          "api/stack/cancel",
+          *json_post_arguments({:stack_id => stack_id})
+        )
+        _log.info("==== Cancel Stack Response: \n #{http_response.body}")
         Terraform::Runner::Response.parsed_response(http_response)
       end
 
