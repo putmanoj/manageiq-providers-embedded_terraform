@@ -19,8 +19,8 @@ RSpec.describe(Terraform::Runner) do
     before do
       ENV["TERRAFORM_RUNNER_URL"] = "https://1.2.3.4:7000"
 
-      stub_request(:get, "https://1.2.3.4:7000/ping")
-        .to_return(:status => 200, :body => {'count' => 0}.to_json)
+      stub_request(:get, "https://1.2.3.4:7000/ready")
+        .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
     end
 
     it "check if terraform-runner service is available" do
