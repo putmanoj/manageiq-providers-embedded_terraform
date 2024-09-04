@@ -31,7 +31,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
     begin
       update_service_instance_with_stack_id(extra_vars[:action], extra_vars[:service_instance_id], response.stack_id)
     rescue Exception => e # rubocop:disable Lint/RescueException
-      _log.error("There was some error when update stack_id in service-instance")
+      _log.error("Failed updating stack_id in service-instance/#{extra_vars[:service_instance_id]}")
       _log.error(e)
     end
 
