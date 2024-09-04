@@ -34,7 +34,7 @@ module Terraform
             stack_id = input_vars[:terraform_stack_id]
             input_vars.delete(:action)
             input_vars.delete(:terraform_stack_id)
-            _log.debug("Run_aysnc/delete_tack('#{stack_id}') for template: #{template_path}")
+            _log.debug("Run_aysnc/delete_stack('#{stack_id}') for template: #{template_path}")
             response = delete_stack_job(
               stack_id,
               template_path,
