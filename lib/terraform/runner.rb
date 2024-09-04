@@ -18,8 +18,8 @@ module Terraform
       # Run a template, initiates terraform-runner job for running a template, via terraform-runner api
       #
       # @param input_vars [Hash] Hash with key/value pairs that will be passed as input variables to the
-      #        terraform-runner run, (execpt :action && :stack_id used for 'Retirement')
-      #        * To run Retirement(delete stack) add :action='Retirement' & :stack_id=<id-from-terraform-runner>
+      #        terraform-runner run, (execpt :action && :terraform_stack_id used for 'Retirement')
+      #        * To run Retirement(delete stack) add :action='Retirement' & :terraform_stack_id=<id-from-terraform-runner>
       # @param tags [Hash] Hash with key/values pairs that will be passed as tags to the terraform-runner run
       # @param credentials [Array] List of Authentication objects to provide to the terraform run
       # @param env_vars [Hash] Hash with key/value pairs that will be passed as environment variables to the
@@ -30,10 +30,10 @@ module Terraform
         case action
         when 'retirement'
           #  ===== DELETE =====
-          if input_vars.key?(:stack_id) && !input_vars[:stack_id].blank?
-            stack_id = input_vars[:stack_id]
+          if input_vars.key?(:terraform_stack_id) && input_vars[:terraform_stack_id].present?
+            stack_id = input_vars[:terraform_stack_id]
             input_vars.delete(:action)
-            input_vars.delete(:stack_id)
+            input_vars.delete(:terraform_stack_id)
             _log.debug("Run_aysnc/delete_tack('#{stack_id}') for template: #{template_path}")
             response = delete_stack_job(
               stack_id,
@@ -44,8 +44,8 @@ module Terraform
             )
             Terraform::Runner::ResponseAsync.new(response.stack_id)
           else
-            _log.error("'stack_id' is required for Retirement action, was not passed")
-            raise "'stack_id' is required for Retirement action, was not passed"
+            _log.error("'terraform_stack_id' is required for Retirement action, was not passed")
+            raise "'terraform_stack_id' is required for Retirement action, was not passed"
           end
         else
           # ===== CREATE =====

@@ -28,6 +28,13 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
     options[:terraform_stack_id] = response.stack_id
     save!
 
+    begin
+      update_service_instance_with_stack_id(extra_vars[:action], extra_vars[:service_instance_id], response.stack_id)
+    rescue Exception => e # rubocop:disable Lint/RescueException
+      _log.error("There was some error when update stack_id in service-instance")
+      _log.error(e)
+    end
+
     queue_poll_runner
   end
 
@@ -137,5 +144,19 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
     FileUtils.rm_rf(options[:git_checkout_tempdir])
   rescue Errno::ENOENT
     nil
+  end
+
+  def update_service_instance_with_stack_id(action, service_instance_id, stack_id)
+    if !action.nil? && action.downcase == 'provision'
+      service_instance = ServiceTerraformTemplate.find_by(:id => service_instance_id)
+      if !service_instance.nil?
+        service_instance.preprocess(action, {:extra_vars => {:terraform_stack_id => stack_id}})
+        _log.debug("updated service-instance/#{service_instance.to_json} with stack_id#{stack_id}")
+      else
+        _log.info("Not found service-instance/#{service_instance_id}")
+      end
+    else
+      _log.debug("Not Provision action, no update to service-instance/#{service_instance_id} required")
+    end
   end
 end

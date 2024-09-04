@@ -57,7 +57,7 @@ class ServiceTerraformTemplate < ServiceGeneric
   def launch_terraform_template(action)
     terraform_template = terraform_template(action)
 
-    stack = ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack.create_job(terraform_template, get_job_options(action))
+    stack = ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack.create_stack(terraform_template, get_job_options(action))
     add_resource!(stack, :name => action)
   end
 
@@ -81,12 +81,15 @@ class ServiceTerraformTemplate < ServiceGeneric
       retire_job_options = options[job_option_key('retirement')].deep_dup
       retire_job_options[:action] = action
       prov_job_options = options[job_option_key('provision')].deep_dup
-      # if not already available in retirement options, (won't be available for terraform) 
+      # if not already available in retirement options, (won't be available for terraform)
       # copy extra_vars,execution_ttl,verbosity,credentials,etc from provision action
-      prov_job_options.deep_merge(retire_job_options)
+      job_options = prov_job_options.deep_merge(retire_job_options)
     else
-      options[job_option_key(action)].deep_dup
+      job_options = options[job_option_key(action)].deep_dup
     end
+    job_options[:extra_vars][:service_instance_id] = id
+    job_options[:extra_vars][:action] = action
+    job_options
   end
 
   def config_options(action)
