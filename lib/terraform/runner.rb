@@ -44,7 +44,8 @@ module Terraform
             )
             Terraform::Runner::ResponseAsync.new(response.stack_id)
           else
-            raise "'_stack_id' is required for Retirement action, was not passed"
+            _log.error("'stack_id' is required for Retirement action, was not passed")
+            raise "'stack_id' is required for Retirement action, was not passed"
           end
         else
           # ===== CREATE =====

@@ -37,6 +37,9 @@ class ServiceTemplateTerraformTemplate < ServiceTemplate
 
   def terraform_template(action)
     template_id = config_info.dig(action.downcase.to_sym, :configuration_script_payload_id)
+    if template_id.nil? && action.downcase == 'retirement'
+      template_id = config_info.dig(:provision, :configuration_script_payload_id)
+    end
     return if template_id.nil?
 
     ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Template.find(template_id)
