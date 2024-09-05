@@ -19,7 +19,7 @@ RSpec.describe(Terraform::Runner) do
     before do
       ENV["TERRAFORM_RUNNER_URL"] = "https://1.2.3.4:7000"
 
-      stub_request(:get, "https://1.2.3.4:7000/ready")
+      stub_request(:get, "https://1.2.3.4:7000/live")
         .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
     end
 
