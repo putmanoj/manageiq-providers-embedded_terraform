@@ -28,10 +28,11 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
     options[:terraform_stack_id] = response.stack_id
     save!
 
+    service_instance_id = extra_vars[:miq_service_instance_id]
     begin
-      update_service_instance_with_stack_id(extra_vars[:action], extra_vars[:service_instance_id], response.stack_id)
+      update_service_instance_with_stack_id(extra_vars[:miq_action], service_instance_id, response.stack_id)
     rescue Exception => e # rubocop:disable Lint/RescueException
-      _log.error("Failed updating stack_id in service-instance/#{extra_vars[:service_instance_id]}")
+      _log.error("Failed updating stack_id in service-instance/#{service_instance_id}")
       _log.error(e)
     end
 
@@ -150,7 +151,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
     if !action.nil? && action.downcase == 'provision'
       service_instance = ServiceTerraformTemplate.find_by(:id => service_instance_id)
       if !service_instance.nil?
-        service_instance.preprocess(action, {:extra_vars => {:terraform_stack_id => stack_id}})
+        service_instance.preprocess(action, {:extra_vars => {:miq_terraform_stack_id => stack_id}})
         _log.debug("updated service-instance/#{service_instance.to_json} with stack_id#{stack_id}")
       else
         _log.info("Not found service-instance/#{service_instance_id}")
