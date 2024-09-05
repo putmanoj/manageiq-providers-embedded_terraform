@@ -29,7 +29,7 @@ module Terraform
       # @return [Terraform::Runner::ResponseAsync] Response object of terraform-runner create action
       def run_async(input_vars, template_path, tags: nil, credentials: [], env_vars: {})
         action   = input_vars.key?(:miq_action) ? input_vars[:miq_action].downcase : nil
-        stack_id = input_vars.key?(:miq_terraform_stack_id) ? input_vars[:miq_terraform_stack_id].downcase : nil
+        stack_id = input_vars.key?(:miq_terraform_stack_id) ? input_vars[:miq_terraform_stack_id] : nil
         input_vars.delete(:miq_action)
         input_vars.delete(:miq_terraform_stack_id)
         input_vars.delete(:miq_service_instance_id)
