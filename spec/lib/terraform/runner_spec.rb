@@ -205,10 +205,10 @@ RSpec.describe(Terraform::Runner) do
 
       def verify_req(req)
         body = JSON.parse(req.body)
-        # expect(body["stack_id"]).to(eq(@hello_world_retrieve_delete_response['stack_id']))
-        # expect(body).to(have_key('templateZipFile'))
-        # # expect(body["parameters"]).to(eq([{"name" => "name", "value" => "New World", "secured" => "false"}]))
-        # expect(body["cloud_providers"]).to(eq([]))
+        expect(body["stack_id"]).to(eq(@hello_world_retrieve_delete_response['stack_id']))
+        expect(body).to(have_key('templateZipFile'))
+        expect(body["parameters"]).to(eq([{"name" => "name", "value" => "New World", "secured" => "false"}]))
+        expect(body["cloud_providers"]).to(eq([]))
       end
 
       before do
