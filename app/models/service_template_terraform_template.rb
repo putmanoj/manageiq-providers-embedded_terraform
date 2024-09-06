@@ -15,6 +15,9 @@ class ServiceTemplateTerraformTemplate < ServiceTemplate
     options      = options.merge(:service_type => SERVICE_TYPE_ATOMIC, :prov_type => 'generic_terraform_template')
     config_info  = validate_config_info(options[:config_info])
 
+    # retirement config same as provision, as terraform Retirement(destroy) is reverse of Provision(apply)
+    config_info[:retirement] = config_info[:provision].deep_dup.merge(config_info[:retirement])
+
     transaction do
       create_from_options(options).tap do |service_template|
         service_template.create_resource_actions(config_info)
