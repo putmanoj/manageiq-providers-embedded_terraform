@@ -42,17 +42,23 @@ class Dialog
         :position => position
       ).tap do |dialog_group|
         input_vars.each_with_index do |(var_info), index|
-          key, value, required, readonly, hidden, label, description = var_info.values_at(
-            "name", "default", "required", "immutable", "hidden", "label", "description"
+          key, value, required, readonly, hidden, label, description, type = var_info.values_at(
+            "name", "default", "required", "immutable", "hidden", "label", "description", "type"
           )
-          # TODO: use these when adding variable field
-          # type, secured = var_info.values_at("type", "secured")
+          # TODO: use 'hidden' & 'secured' attributes, when adding variable field
 
           next if hidden
 
-          add_variable_field(
-            key, value, dialog_group, index, label, description, required, readonly
-          )
+          case type
+          when "boolean"
+            add_check_box_field(
+              key, value, dialog_group, index, label, description, readonly
+            )
+          else
+            add_variable_field(
+              key, value, dialog_group, index, label, description, required, readonly
+            )
+          end
         end
       end
     end
@@ -87,6 +93,29 @@ class Dialog
         :dialog_group   => group,
         :read_only      => read_only
       )
+    end
+
+    def add_check_box_field(key, value, group, position, label, description, read_only)
+      value = to_boolean(value)
+      description = key if description.blank?
+
+      group.dialog_fields.build(
+        :type           => "DialogFieldCheckBox",
+        :name           => key.to_s,
+        :data_type      => "boolean",
+        :default_value  => value,
+        :label          => label,
+        :description    => description,
+        :reconfigurable => true,
+        :position       => position,
+        :dialog_group   => group,
+        :read_only      => read_only
+      )
+    end
+
+    def to_boolean(value)
+      require 'active_model/type'
+      ActiveModel::Type::Boolean.new.cast(value)
     end
   end
 end
