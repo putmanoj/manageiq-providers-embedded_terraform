@@ -54,6 +54,14 @@ class Dialog
             add_check_box_field(
               key, value, dialog_group, index, label, description, readonly
             )
+          when "map"
+            add_json_variable_field(
+              key, value, dialog_group, index, label, description, required, readonly, :is_list => false
+            )
+          when "list"
+            add_json_variable_field(
+              key, value, dialog_group, index, label, description, required, readonly, :is_list => true
+            )
           else
             add_variable_field(
               key, value, dialog_group, index, label, description, required, readonly
@@ -92,6 +100,32 @@ class Dialog
         :position       => position,
         :dialog_group   => group,
         :read_only      => read_only
+      )
+    end
+
+    JSONSTR_LIST_REGEX = '^\[[\W\w]*\]$'.freeze   # list of strings or objects
+    JSONSTR_OBJECT_REGEX = '^\{[\W\w]*\}$'.freeze # map or object
+
+    def add_json_variable_field(key, value, group, position, label, description, required, read_only, is_list: false)
+      value = JSON.pretty_generate(value) if [Hash, Array].include?(value.class)
+      description = key if description.blank?
+
+      group.dialog_fields.build(
+        :type              => 'DialogFieldTextAreaBox',
+        :name              => key.to_s,
+        :data_type         => 'string',
+        :display           => 'edit',
+        :required          => required,
+        :default_value     => value,
+        :label             => label,
+        :description       => description,
+        :reconfigurable    => true,
+        :position          => position,
+        :dialog_group      => group,
+        :read_only         => read_only,
+        :validator_type    => 'regex',
+        :validator_rule    => is_list ? JSONSTR_LIST_REGEX : JSONSTR_OBJECT_REGEX,
+        :validator_message => "must be JSON #{is_list ? 'List' : 'Object or Map'}"
       )
     end
 
