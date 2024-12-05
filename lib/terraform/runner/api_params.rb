@@ -56,13 +56,15 @@ module Terraform
         require 'json'
 
         input_vars.map do |k, v|
-          type_constr = type_constraints.find { |e| e[:name] == k.to_s }
+          type_constr = type_constraints.find { |e| e['name'] == k.to_s }
 
           secured = false
           if !type_constr.nil?
-            secured = TRUE_VALUES.include?(type_constr[:secured])
+            e_secured, e_type = type_constr.values_at('secured', 'type')
 
-            case type_constr[:type]
+            secured = TRUE_VALUES.include?(e_secured)
+
+            case e_type
             when "boolean"
               v = TRUE_VALUES.include?(v)
 
