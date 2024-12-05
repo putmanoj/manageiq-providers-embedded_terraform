@@ -31,16 +31,18 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
       Terraform::Runner.delete_stack(
         options[:terraform_stack_id],
         template_path,
-        :input_vars  => decrypt_vars(input_vars),
-        :credentials => credentials,
-        :env_vars    => options[:env_vars]
+        :input_vars                  => decrypt_vars(input_vars),
+        :input_vars_type_constraints => input_vars_type_constraints,
+        :credentials                 => credentials,
+        :env_vars                    => options[:env_vars]
       )
     else
       response = Terraform::Runner.create_stack(
         template_path,
-        :input_vars  => decrypt_vars(input_vars),
-        :credentials => credentials,
-        :env_vars    => options[:env_vars]
+        :input_vars                  => decrypt_vars(input_vars),
+        :input_vars_type_constraints => input_vars_type_constraints,
+        :credentials                 => credentials,
+        :env_vars                    => options[:env_vars]
       )
       options[:terraform_stack_id] = response.stack_id
       save!
@@ -154,5 +156,14 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
     FileUtils.rm_rf(options[:git_checkout_tempdir])
   rescue Errno::ENOENT
     nil
+  end
+
+  def input_vars_type_constraints
+    require 'json'
+    payload = JSON.parse(template.payload)
+    payload['input_vars'] || []
+  rescue => error
+    _log.error("Failure in parsing payload for template/#{template.id}, caused by #{error.message}")
+    []
   end
 end
