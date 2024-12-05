@@ -125,7 +125,7 @@ class Dialog
         :read_only         => read_only,
         :validator_type    => 'regex',
         :validator_rule    => is_list ? JSONSTR_LIST_REGEX : JSONSTR_OBJECT_REGEX,
-        :validator_message => "must be JSON #{is_list ? 'List' : 'Object or Map'}"
+        :validator_message => "This field value must be a JSON #{is_list ? 'List' : 'Object or Map'}"
       )
     end
 
