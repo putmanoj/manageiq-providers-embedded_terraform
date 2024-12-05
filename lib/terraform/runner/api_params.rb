@@ -51,7 +51,7 @@ module Terraform
       # @param input_vars       [Hash]  key/value pairs as input variables for the terraform-runner run job.
       # @param type_constraints [Array] array of type constraints objects, from Terraform Runner
       #
-      # @return [Array] Array of param objects [{:name,:value}]
+      # @return [Array] Array of param objects [{name,value,secured}]
       def self.to_normalized_cam_parameters(input_vars, type_constraints)
         require 'json'
 

@@ -27,6 +27,9 @@ class Dialog
       end
     end
 
+    JSONSTR_LIST_REGEX = '^\[[\W\w]*\]$'.freeze   # list of strings or objects
+    JSONSTR_OBJECT_REGEX = '^\{[\W\w]*\}$'.freeze # map or object
+
     private
 
     def add_template_variables_group(tab, position, terraform_template)
@@ -102,9 +105,6 @@ class Dialog
         :read_only      => read_only
       )
     end
-
-    JSONSTR_LIST_REGEX = '^\[[\W\w]*\]$'.freeze   # list of strings or objects
-    JSONSTR_OBJECT_REGEX = '^\{[\W\w]*\}$'.freeze # map or object
 
     def add_json_variable_field(key, value, group, position, label, description, required, read_only, is_list: false)
       value = JSON.pretty_generate(value) if [Hash, Array].include?(value.class)
