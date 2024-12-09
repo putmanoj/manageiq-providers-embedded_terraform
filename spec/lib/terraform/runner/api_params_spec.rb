@@ -183,7 +183,7 @@ RSpec.describe(Terraform::Runner::ApiParams) do
         "list_of_any_types_not_nullable" => "",
       }
       expect { described_class.to_normalized_cam_parameters(input_params, type_constraints) }
-        .to raise_error(RuntimeError, "The variable 'list_of_any_types_not_nullable' does not have valid array value")
+        .to raise_error(RuntimeError, "The variable 'list_of_any_types_not_nullable' does not have valid Array value")
     end
 
     it "fails, if param of type 'list', is not a array-json-string" do
@@ -191,7 +191,7 @@ RSpec.describe(Terraform::Runner::ApiParams) do
         "list_of_strings" => "a",
       }
       expect { described_class.to_normalized_cam_parameters(input_params, type_constraints) }
-        .to raise_error(RuntimeError, "The variable 'list_of_strings' does not have valid array value")
+        .to raise_error(RuntimeError, "The variable 'list_of_strings' does not have valid Array value")
     end
 
     it "fails, if param of type 'list', is not a array" do
@@ -199,7 +199,7 @@ RSpec.describe(Terraform::Runner::ApiParams) do
         "list_of_strings" => {},
       }
       expect { described_class.to_normalized_cam_parameters(input_params, type_constraints) }
-        .to raise_error(RuntimeError, "The variable 'list_of_strings' does not have valid array value")
+        .to raise_error(RuntimeError, "The variable 'list_of_strings' does not have valid Array value")
     end
 
     it "fails, if param of type 'map', is not a hashmap-json-string" do
@@ -207,7 +207,7 @@ RSpec.describe(Terraform::Runner::ApiParams) do
         "a_object" => "\"name\": \"Sam\""
       }
       expect { described_class.to_normalized_cam_parameters(input_params, type_constraints) }
-        .to raise_error(RuntimeError, "The variable 'a_object' does not have valid hashmap value")
+        .to raise_error(RuntimeError, "The variable 'a_object' does not have valid Hash value")
     end
 
     it "fails, if param of type 'map', is not a hashmap" do
@@ -215,7 +215,7 @@ RSpec.describe(Terraform::Runner::ApiParams) do
         "a_object" => [],
       }
       expect { described_class.to_normalized_cam_parameters(input_params, type_constraints) }
-        .to raise_error(RuntimeError, "The variable 'a_object' does not have valid hashmap value")
+        .to raise_error(RuntimeError, "The variable 'a_object' does not have valid Hash value")
     end
 
     it "converts boolean value to true" do

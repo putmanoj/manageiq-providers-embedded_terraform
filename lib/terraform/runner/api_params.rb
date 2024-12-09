@@ -70,46 +70,11 @@ module Terraform
               v = TRUE_VALUES.include?(v)
 
             when "map"
-              if v.kind_of?(String)
-                if v.empty?
-                  v = nil
-                else
-                  begin
-                    v = JSON.parse(v)
-                  rescue JSON::ParserError
-                    raise "The variable '#{k}' does not have valid hashmap value"
-                  end
-                end
-              end
-
-              if v.nil?
-                if is_required == true
-                  raise "The variable '#{k}' does not have valid hashmap value"
-                end
-              elsif !v.kind_of?(Hash)
-                raise "The variable '#{k}' does not have valid hashmap value"
-              end
+              v = parse_json_value(k, v, :expected_type => Hash, :is_required => is_required)
 
             when "list"
-              if v.kind_of?(String)
-                if v.empty?
-                  v = nil
-                else
-                  begin
-                    v = JSON.parse(v)
-                  rescue JSON::ParserError
-                    raise "The variable '#{k}' does not have valid array value"
-                  end
-                end
-              end
+              v = parse_json_value(k, v, :expected_type => Array, :is_required => is_required)
 
-              if v.nil?
-                if is_required == true
-                  raise "The variable '#{k}' does not have valid array value"
-                end
-              elsif !v.kind_of?(Array)
-                raise "The variable '#{k}' does not have valid array value"
-              end
             else
               # string or number(string)
               # (number as string, is implicitly converted by terraform, so no conversion is requried)
@@ -121,6 +86,30 @@ module Terraform
 
           to_cam_param(k, v, :is_secured => is_secured)
         end
+      end
+
+      def self.parse_json_value(key, value, expected_type: Array, is_required: false)
+        if value.kind_of?(String)
+          if value.empty?
+            value = nil
+          else
+            begin
+              value = JSON.parse(value)
+            rescue JSON::ParserError
+              raise "The variable '#{key}' does not have valid #{expected_type.name} value"
+            end
+          end
+        end
+
+        if value.nil?
+          if is_required == true
+            raise "The variable '#{key}' does not have valid #{expected_type.name} value"
+          end
+        elsif !value.kind_of?(expected_type)
+          raise "The variable '#{key}' does not have valid #{expected_type.name} value"
+        end
+
+        value
       end
     end
   end
