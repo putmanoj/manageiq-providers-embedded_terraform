@@ -30,6 +30,8 @@ class Dialog
     JSONSTR_LIST_REGEX = '^\[[\W\w]*\]$'.freeze   # list of strings or objects
     JSONSTR_OBJECT_REGEX = '^\{[\W\w]*\}$'.freeze # map or object
 
+    NUMBER_REGEX = '^[0-9]+$|^[0-9]+[\.]{1}[0-9]+$'.freeze # integer or decimal point number
+
     private
 
     def add_template_variables_group(tab, position, terraform_template)
@@ -56,6 +58,10 @@ class Dialog
           when "boolean"
             add_check_box_field(
               key, value, dialog_group, index, label, description, readonly
+            )
+          when "number"
+            add_number_variable_field(
+              key, value, dialog_group, index, label, description, required, readonly
             )
           when "map"
             add_json_variable_field(
@@ -126,6 +132,28 @@ class Dialog
         :validator_type    => 'regex',
         :validator_rule    => is_list ? JSONSTR_LIST_REGEX : JSONSTR_OBJECT_REGEX,
         :validator_message => "This field value must be a JSON #{is_list ? 'List' : 'Object or Map'}"
+      )
+    end
+
+    def add_number_variable_field(key, value, group, position, label, description, required, read_only)
+      description = key if description.blank?
+
+      group.dialog_fields.build(
+        :type              => 'DialogFieldTextBox',
+        :name              => key.to_s,
+        :data_type         => 'string',
+        :display           => 'edit',
+        :required          => required,
+        :default_value     => value,
+        :label             => label,
+        :description       => description,
+        :reconfigurable    => true,
+        :position          => position,
+        :dialog_group      => group,
+        :read_only         => read_only,
+        :validator_type    => 'regex',
+        :validator_rule    => NUMBER_REGEX,
+        :validator_message => "This field value must be a number"
       )
     end
 
