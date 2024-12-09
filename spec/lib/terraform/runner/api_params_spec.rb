@@ -94,24 +94,26 @@ RSpec.describe(Terraform::Runner::ApiParams) do
   describe 'Normalized manageiq vars to cam_parameters' do
     let(:type_constraints) do
       [
-        {"name" => "a_bool", "label" => "a_bool", "type" => "boolean", "description" => "This a boolean type, with default value", "required" => true, "secured" => false, "hidden" => false, "immutable" => false, "default" => true},
+        {"name" => "a_bool", "label" => "a_bool", "type" => "boolean", "description" => "This a boolean type, with default value", "required" => false, "secured" => false, "hidden" => false, "immutable" => false, "default" => true},
         {"name" => "a_bool_required", "label" => "a_bool_required", "type" => "boolean", "description" => "This a boolean type, value is required to provider from user", "required" => true, "secured" => false, "hidden" => false, "immutable" => false},
-        {"name" => "a_number", "label" => "a_number", "type" => "string", "description" => "This a number type, with default value", "required" => true, "secured" => false, "hidden" => false, "immutable" => false, "default" => 10},
-        {"name" => "a_number_required", "label" => "a_number_required", "type" => "string", "description" => "This a number type, value is required to provider from user", "required" => true, "secured" => false, "hidden" => false, "immutable" => false},
-        {"name" => "a_object", "label" => "a_object", "type" => "map", "description" => "", "required" => true, "secured" => false, "hidden" => false, "immutable" => false, "default" => {"age" => 30, "email" => "sam@example.com", "name" => "Sam"}},
-        {"name" => "a_object_with_optional_attribute", "label" => "a_object_with_optional_attribute", "type" => "map", "description" => "", "required" => true, "secured" => false, "hidden" => false, "immutable" => false, "default" => {"user_id"=>"josh"}},
-        {"name" => "a_string", "label" => "a_string", "type" => "string", "description" => "This a string type, with default value", "required" => true, "secured" => false, "hidden" => false, "immutable" => false, "default" => "World"},
-        {"name" => "a_string_required", "label" => "a_string_required", "type" => "string", "description" => "This a string type, value is required to provider from user", "required" => true, "secured" => false, "hidden" => false, "immutable" => false},
-        {"name" => "a_string_with_sensitive_value", "label" => "a_string_with_sensitive_value", "type" => "string", "description" => "This a string type, with sensitive value", "required" => true, "secured" => false, "hidden" => false, "immutable" => false, "default" => "The Secret"},
-        {"name" => "list_of_any_types", "label" => "list_of_any_types", "type" => "list", "description" => "", "required" => true, "secured" => false, "hidden" => false, "immutable" => false},
-        {"name" => "list_of_object_with_nested_structures", "label" => "list_of_object_with_nested_structures", "type" => "list", "description" => "", "required" => true, "secured" => false, "hidden" => false, "immutable" => false, "default" => [{"name" => "Production", "website" => {"routing_rules"=>"[\n  {\n    \"Condition\" = { \"KeyPrefixEquals\": \"img/\" },\n    \"Redirect\"  = { \"ReplaceKeyPrefixWith\": \"images/\" }\n  }\n]\n"}}, {"enabled" => false, "name" => "archived"}]},
-        {"name" => "list_of_objects", "label" => "list_of_objects", "type" => "list", "description" => "", "required" => true, "secured" => false, "hidden" => false, "immutable" => false, "default" => [{"external" => 8300, "internal" => 8300, "protocol" => "tcp"}]},
-        {"name" => "list_of_strings", "label" => "list_of_strings", "type" => "list", "description" => "", "required" => true, "secured" => false, "hidden" => false, "immutable" => false, "default" => ["micro", "large", "xlarge"]},
+        {"name" => "a_number", "label" => "a_number", "type" => "number", "description" => "This a number type, with default value", "required" => false, "secured" => false, "hidden" => false, "immutable" => false, "default" => 10},
+        {"name" => "a_number_required", "label" => "a_number_required", "type" => "number", "description" => "This a number type, value is required to provider from user", "required" => true, "secured" => false, "hidden" => false, "immutable" => false},
+        {"name" => "a_object", "label" => "a_object", "type" => "map", "description" => "", "required" => false, "secured" => false, "hidden" => false, "immutable" => false, "default" => {"age" => 30, "email" => "sam@example.com", "name" => "Sam"}},
+        {"name" => "a_object_with_optional_attribute", "label" => "a_object_with_optional_attribute", "type" => "map", "description" => "", "required" => false, "secured" => false, "hidden" => false, "immutable" => false, "default" => {"user_id" => "josh"}},
+        {"name" => "a_string", "label" => "a_string", "type" => "string", "description" => "This a string type, with default value", "required" => false, "secured" => false, "hidden" => false, "immutable" => false, "default" => "World"},
+        {"name" => "a_string_not_nullable", "label" => "a_string_not_nullable", "type" => "string", "description" => "This a string type, cannot have null value, value is required", "required" => true, "secured" => false, "hidden" => false, "immutable" => false},
+        {"name" => "a_string_required", "label" => "a_string_required", "type" => "string", "description" => "This a string type, value is required, though can have null value", "required" => true, "secured" => false, "hidden" => false, "immutable" => false},
+        {"name" => "a_string_with_sensitive_value", "label" => "a_string_with_sensitive_value", "type" => "string", "description" => "This a string type, with sensitive value", "required" => false, "secured" => false, "hidden" => false, "immutable" => false, "default" => "The Secret"},
+        {"name" => "list_of_any_types", "label" => "list_of_any_types", "type" => "list", "description" => "This a list type, value is not required, can have null value", "required" => false, "secured" => false, "hidden" => false, "immutable" => false},
+        {"name" => "list_of_any_types_not_nullable", "label" => "list_of_any_types_not_nullable", "type" => "list", "description" => "This a list type, cannot null value, value is required,", "required" => true, "secured" => false, "hidden" => false, "immutable" => false},
+        {"name" => "list_of_object_with_nested_structures", "label" => "list_of_object_with_nested_structures", "type" => "list", "description" => "", "required" => false, "secured" => false, "hidden" => false, "immutable" => false, "default" => [{"name" => "Production", "website" => {"routing_rules" => "[\n  {\n    \"Condition\" = { \"KeyPrefixEquals\": \"img/\" },\n    \"Redirect\"  = { \"ReplaceKeyPrefixWith\": \"images/\" }\n  }\n]\n"}}, {:enabled => false, :name => "archived"}]},
+        {"name" => "list_of_objects", "label" => "list_of_objects", "type" => "list", "description" => "", "required" => false, "secured" => false, "hidden" => false, "immutable" => false, "default" => [{"external" => 8300, "internal" => 8300, "protocol" => "tcp"}]},
+        {"name" => "list_of_strings", "label" => "list_of_strings", "type" => "list", "description" => "", "required" => false, "secured" => false, "hidden" => false, "immutable" => false, "default" => ["micro", "large", "xlarge"]},
         {"name" => "list_of_strings_required", "label" => "list_of_strings_required", "type" => "list", "description" => "This a boolean type, with default value", "required" => true, "secured" => false, "hidden" => false, "immutable" => false},
-        {"name" => "map_with_string", "label" => "map_with_string", "type" => "map", "description" => "", "required" => true, "secured" => false, "hidden" => false, "immutable" => false, "default" => {"environment" => "dev", "name" => "demo"}},
-        {"name" => "set_of_strings", "label" => "set_of_strings", "type" => "list", "description" => "The set type, holding unordered set of unique values", "required" => true, "secured" => false, "hidden" => false, "immutable" => false, "default" => ["sg-12345678", "sg-abcdefgh"]},
-        {"name" => "tuple_of_all_primitive_types", "label" => "tuple_of_all_primitive_types", "type" => "list", "description" => "The tuple with three different types, which are immutable", "required" => true, "secured" => false, "hidden" => false, "immutable" => false, "default" => ["a", 15, true]},
-        {"name" => "tuple_of_strings", "label" => "tuple_of_strings", "type" => "list", "description" => "The tuple of all string types, which are immutable", "required" => true, "secured" => false, "hidden" => false, "immutable" => false, "default" => ["192.168.1.1", "192.168.1.2"]}
+        {"name" => "map_with_string", "label" => "map_with_string", "type" => "map", "description" => "", "required" => false, "secured" => false, "hidden" => false, "immutable" => false, "default" => {"environment" => "dev", "name" => "demo"}},
+        {"name" => "set_of_strings", "label" => "set_of_strings", "type" => "list", "description" => "The set type, holding unordered set of unique values", "required" => false, "secured" => false, "hidden" => false, "immutable" => false, "default" => ["sg-12345678", "sg-abcdefgh"]},
+        {"name" => "tuple_of_all_primitive_types", "label" => "tuple_of_all_primitive_types", "type" => "list", "description" => "The tuple with three different types, which are immutable", "required" => false, "secured" => false, "hidden" => false, "immutable" => false, "default" => ["a", 15, true]},
+        {"name" => "tuple_of_strings", "label" => "tuple_of_strings", "type" => "list", "description" => "The tuple of all string types, which are immutable", "required" => false, "secured" => false, "hidden" => false, "immutable" => false, "default" => ["192.168.1.1", "192.168.1.2"]}
       ]
     end
 
@@ -124,9 +126,11 @@ RSpec.describe(Terraform::Runner::ApiParams) do
         "a_object"                              => "{\n  \"age\": 30,\n  \"email\": \"sam@example.com\",\n  \"name\": \"Sam\"\n}",
         "a_object_with_optional_attribute"      => "{\n  \"user_id\": \"josh\"\n}",
         "a_string"                              => "World",
-        "a_string_required"                     => "a",
+        "a_string_not_nullable"                 => "a",
+        "a_string_required"                     => "b",
         "a_string_with_sensitive_value"         => "The Secret",
-        "list_of_any_types"                     => "[1, 2, 3]",
+        "list_of_any_types"                     => "",
+        "list_of_any_types_not_nullable"        => "[1, 2, 3]",
         "list_of_object_with_nested_structures" => "[\n  {\n    \"name\": \"Production\",\n    \"website\": {\n      \"routing_rules\": \"[\\n  {\\n    \\\"Condition\\\" = { \\\"KeyPrefixEquals\\\": \\\"img/\\\" },\\n    \\\"Redirect\\\"  = { \\\"ReplaceKeyPrefixWith\\\": \\\"images/\\\" }\\n  }\\n]\\n\"\n    }\n  },\n  {\n    \"enabled\": false,\n    \"name\": \"archived\"\n  }\n]",
         "list_of_objects"                       => "[\n  {\n    \"external\": 8300,\n    \"internal\": 8300,\n    \"protocol\": \"tcp\"\n  }\n]",
         "list_of_strings"                       => "[\n  \"micro\",\n  \"large\",\n  \"xlarge\"\n]",
@@ -146,9 +150,11 @@ RSpec.describe(Terraform::Runner::ApiParams) do
         {:name => "a_object", :value => {:age => 30, :email => "sam@example.com", :name => "Sam"}, :secured => "false"},
         {:name => "a_object_with_optional_attribute", :value => {:user_id => "josh"}, :secured => "false"},
         {:name => "a_string", :value => "World", :secured => "false"},
-        {:name => "a_string_required", :value => "a", :secured => "false"},
+        {:name => "a_string_not_nullable", :value => "a", :secured => "false"},
+        {:name => "a_string_required", :value => "b", :secured => "false"},
         {:name => "a_string_with_sensitive_value", :value => "The Secret", :secured => "false"},
-        {:name => "list_of_any_types", :value => [1, 2, 3], :secured => "false"},
+        {:name => "list_of_any_types", :value => nil, :secured => "false"},
+        {:name => "list_of_any_types_not_nullable", :value => [1, 2, 3], :secured => "false"},
         {:name => "list_of_object_with_nested_structures", :value => [{:name => "Production", :website => {:routing_rules => "[\n  {\n    \"Condition\" = { \"KeyPrefixEquals\": \"img/\" },\n    \"Redirect\"  = { \"ReplaceKeyPrefixWith\": \"images/\" }\n  }\n]\n"}}, {:enabled => false, :name => "archived"}], :secured => "false"},
         {:name => "list_of_objects", :value => [{:external => 8300, :internal => 8300, :protocol => "tcp"}], :secured => "false"},
         {:name => "list_of_strings", :value => ["micro", "large", "xlarge"], :secured => "false"},
@@ -162,6 +168,22 @@ RSpec.describe(Terraform::Runner::ApiParams) do
       params = described_class.to_normalized_cam_parameters(input_params, type_constraints)
 
       expect(params.to_json).to(eq(expect_params.to_json))
+    end
+
+    it "fails, if param of type 'string', is required, but is empty" do
+      input_params = {
+        "a_string_required" => ""
+      }
+      expect { described_class.to_normalized_cam_parameters(input_params, type_constraints) }
+        .to raise_error(RuntimeError, "The variable 'a_string_required', cannot be empty")
+    end
+
+    it "fails, if param of type 'list', is required, but is empty" do
+      input_params = {
+        "list_of_any_types_not_nullable" => "",
+      }
+      expect { described_class.to_normalized_cam_parameters(input_params, type_constraints) }
+        .to raise_error(RuntimeError, "The variable 'list_of_any_types_not_nullable' does not have valid array value")
     end
 
     it "fails, if param of type 'list', is not a array-json-string" do

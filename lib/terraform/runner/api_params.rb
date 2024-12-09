@@ -58,11 +58,12 @@ module Terraform
         input_vars.map do |k, v|
           type_constr = type_constraints.find { |e| e['name'] == k.to_s }
 
-          secured = false
+          is_secured = false
           if !type_constr.nil?
-            e_secured, e_type = type_constr.values_at('secured', 'type')
+            e_secured, e_type, e_required = type_constr.values_at('secured', 'type', 'required')
 
-            secured = TRUE_VALUES.include?(e_secured)
+            is_secured = TRUE_VALUES.include?(e_secured)
+            is_required = TRUE_VALUES.include?(e_required)
 
             case e_type
             when "boolean"
@@ -70,33 +71,55 @@ module Terraform
 
             when "map"
               if v.kind_of?(String)
-                begin
-                  v = JSON.parse(v)
-                rescue JSON::ParserError
-                  raise "The variable '#{k}' does not have valid hashmap value"
+                if v.empty?
+                  v = nil
+                else
+                  begin
+                    v = JSON.parse(v)
+                  rescue JSON::ParserError
+                    raise "The variable '#{k}' does not have valid hashmap value"
+                  end
                 end
               end
 
-              if !v.kind_of?(Hash)
+              if v.nil?
+                if is_required == true
+                  raise "The variable '#{k}' does not have valid hashmap value"
+                end
+              elsif !v.kind_of?(Hash)
                 raise "The variable '#{k}' does not have valid hashmap value"
               end
 
             when "list"
               if v.kind_of?(String)
-                begin
-                  v = JSON.parse(v)
-                rescue JSON::ParserError
-                  raise "The variable '#{k}' does not have valid array value"
+                if v.empty?
+                  v = nil
+                else
+                  begin
+                    v = JSON.parse(v)
+                  rescue JSON::ParserError
+                    raise "The variable '#{k}' does not have valid array value"
+                  end
                 end
               end
 
-              if !v.kind_of?(Array)
+              if v.nil?
+                if is_required == true
+                  raise "The variable '#{k}' does not have valid array value"
+                end
+              elsif !v.kind_of?(Array)
                 raise "The variable '#{k}' does not have valid array value"
+              end
+            else
+              # string or number(string)
+              # (number as string, is implicitly converted by terraform, so no conversion is requried)
+              if v.blank? && is_required == true
+                raise "The variable '#{k}', cannot be empty"
               end
             end
           end
 
-          to_cam_param(k, v, :is_secured => secured)
+          to_cam_param(k, v, :is_secured => is_secured)
         end
       end
     end
