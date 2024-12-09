@@ -214,6 +214,30 @@ RSpec.describe Dialog::TerraformTemplateServiceDialog do
           assert_terraform_variables_group(group1, input_vars, :assert_default_values => assert_default_values)
         end
       end
+
+      context "with terraform input variable of type number" do
+        let(:dialog_label) { "mydialog-with-number-field" }
+        let(:input_vars) do
+          [
+            {"name" => "a_number", "label" => "a_number", "type" => "number", "description" => "This a number type, with default value", "required" => false, "secured" => false, "hidden" => false, "immutable" => false, "default" => 10},
+            {"name" => "a_number_required", "label" => "a_number_required", "type" => "number", "description" => "This a number type, value is required to provider from user", "required" => true, "secured" => false, "hidden" => false, "immutable" => false},
+          ]
+        end
+
+        it "create_dialog with textbox fields" do
+          terraform_template = FactoryBot.create(:terraform_template, :payload => "{\"input_vars\": #{input_vars.to_json}}")
+          assert_default_values = [
+            {:position => 0, :value => "10"},
+            {:position => 1, :value => nil}
+          ]
+
+          dialog = described_class.create_dialog(dialog_label, terraform_template, {})
+          expect(dialog).to have_attributes(:label => dialog_label, :buttons => "submit,cancel")
+
+          group1 = assert_terraform_template_variables_tab(dialog, :group_size => 1)
+          assert_terraform_variables_group(group1, input_vars, :assert_default_values => assert_default_values)
+        end
+      end
     end
   end
 
@@ -324,6 +348,20 @@ RSpec.describe Dialog::TerraformTemplateServiceDialog do
                      :validator_type    => 'regex',
                      :validator_rule    => described_class::JSONSTR_OBJECT_REGEX,
                      :validator_message => "This field value must be a JSON Object or Map")
+      when 'number'
+        assert_field(fields[index], DialogFieldTextBox,
+                     :name              => name,
+                     :default_value     => value,
+                     :data_type         => 'string',
+                     :display           => "edit",
+                     :label             => name,
+                     :description       => description,
+                     :reconfigurable    => true,
+                     :position          => index,
+                     :read_only         => readonly,
+                     :validator_type    => 'regex',
+                     :validator_rule    => described_class::NUMBER_REGEX,
+                     :validator_message => "This field value must be a number")
       else
         assert_field(fields[index], DialogFieldTextBox,
                      :name           => name,
