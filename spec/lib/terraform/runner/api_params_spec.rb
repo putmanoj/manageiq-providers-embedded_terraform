@@ -92,8 +92,8 @@ RSpec.describe(Terraform::Runner::ApiParams) do
   end
 
   describe 'Normalized manageiq vars to cam_parameters' do
-    let(:type_constraints) do
-      [
+    let(:payload) do
+      {:input_vars => [
         {"name" => "a_bool", "label" => "a_bool", "type" => "boolean", "description" => "This a boolean type, with default value", "required" => false, "secured" => false, "hidden" => false, "immutable" => false, "default" => true},
         {"name" => "a_bool_required", "label" => "a_bool_required", "type" => "boolean", "description" => "This a boolean type, value is required to provider from user", "required" => true, "secured" => false, "hidden" => false, "immutable" => false},
         {"name" => "a_number", "label" => "a_number", "type" => "number", "description" => "This a number type, with default value", "required" => false, "secured" => false, "hidden" => false, "immutable" => false, "default" => 10},
@@ -114,7 +114,12 @@ RSpec.describe(Terraform::Runner::ApiParams) do
         {"name" => "set_of_strings", "label" => "set_of_strings", "type" => "list", "description" => "The set type, holding unordered set of unique values", "required" => false, "secured" => false, "hidden" => false, "immutable" => false, "default" => ["sg-12345678", "sg-abcdefgh"]},
         {"name" => "tuple_of_all_primitive_types", "label" => "tuple_of_all_primitive_types", "type" => "list", "description" => "The tuple with three different types, which are immutable", "required" => false, "secured" => false, "hidden" => false, "immutable" => false, "default" => ["a", 15, true]},
         {"name" => "tuple_of_strings", "label" => "tuple_of_strings", "type" => "list", "description" => "The tuple of all string types, which are immutable", "required" => false, "secured" => false, "hidden" => false, "immutable" => false, "default" => ["192.168.1.1", "192.168.1.2"]}
-      ]
+      ]}
+    end
+
+    # type_constraints hash
+    let(:type_constraints) do
+      payload[:input_vars].index_by { |v| v['name'] }
     end
 
     it "converts to cam_parameters" do
@@ -143,31 +148,31 @@ RSpec.describe(Terraform::Runner::ApiParams) do
       }
 
       expect_params = [
-        {:name => "a_bool", :value => true, :secured => "false"},
-        {:name => "a_bool_required", :value => false, :secured => "false"},
-        {:name => "a_number", :value => "10", :secured => "false"},
-        {:name => "a_number_required", :value => "1", :secured => "false"},
-        {:name => "a_object", :value => {:age => 30, :email => "sam@example.com", :name => "Sam"}, :secured => "false"},
-        {:name => "a_object_with_optional_attribute", :value => {:user_id => "josh"}, :secured => "false"},
-        {:name => "a_string", :value => "World", :secured => "false"},
-        {:name => "a_string_not_nullable", :value => "a", :secured => "false"},
-        {:name => "a_string_required", :value => "b", :secured => "false"},
-        {:name => "a_string_with_sensitive_value", :value => "The Secret", :secured => "false"},
-        {:name => "list_of_any_types", :value => nil, :secured => "false"},
-        {:name => "list_of_any_types_not_nullable", :value => [1, 2, 3], :secured => "false"},
-        {:name => "list_of_object_with_nested_structures", :value => [{:name => "Production", :website => {:routing_rules => "[\n  {\n    \"Condition\" = { \"KeyPrefixEquals\": \"img/\" },\n    \"Redirect\"  = { \"ReplaceKeyPrefixWith\": \"images/\" }\n  }\n]\n"}}, {:enabled => false, :name => "archived"}], :secured => "false"},
-        {:name => "list_of_objects", :value => [{:external => 8300, :internal => 8300, :protocol => "tcp"}], :secured => "false"},
-        {:name => "list_of_strings", :value => ["micro", "large", "xlarge"], :secured => "false"},
-        {:name => "list_of_strings_required", :value => ["a", "b", "c"], :secured => "false"},
-        {:name => "map_with_string", :value => {:environment => "dev", :name => "demo"}, :secured => "false"},
-        {:name => "set_of_strings", :value => ["sg-12345678", "sg-abcdefgh"], :secured => "false"},
-        {:name => "tuple_of_all_primitive_types", :value => ["a", 15, true], :secured => "false"},
-        {:name => "tuple_of_strings", :value => ["192.168.1.1", "192.168.1.2"], :secured => "false"},
-        {:name => "extra_var", :value => "extra", :secured => "false"}
+        {"name" => "a_bool", "value" => true, "secured" => "false"},
+        {"name" => "a_bool_required", "value" => false, "secured" => "false"},
+        {"name" => "a_number", "value" => "10", "secured" => "false"},
+        {"name" => "a_number_required", "value" => "1", "secured" => "false"},
+        {"name" => "a_object", "value" => {"age" => 30, "email" => "sam@example.com", "name" => "Sam"}, "secured" => "false"},
+        {"name" => "a_object_with_optional_attribute", "value" => {"user_id" => "josh"}, "secured" => "false"},
+        {"name" => "a_string", "value" => "World", "secured" => "false"},
+        {"name" => "a_string_not_nullable", "value" => "a", "secured" => "false"},
+        {"name" => "a_string_required", "value" => "b", "secured" => "false"},
+        {"name" => "a_string_with_sensitive_value", "value" => "The Secret", "secured" => "false"},
+        {"name" => "list_of_any_types", "value" => nil, "secured" => "false"},
+        {"name" => "list_of_any_types_not_nullable", "value" => [1, 2, 3], "secured" => "false"},
+        {"name" => "list_of_object_with_nested_structures", "value" => [{"name" => "Production", "website" => {"routing_rules" => "[\n  {\n    \"Condition\" = { \"KeyPrefixEquals\": \"img/\" },\n    \"Redirect\"  = { \"ReplaceKeyPrefixWith\": \"images/\" }\n  }\n]\n"}}, {"enabled" => false, "name" => "archived"}], "secured" => "false"},
+        {"name" => "list_of_objects", "value" => [{"external" => 8300, "internal" => 8300, "protocol" => "tcp"}], "secured" => "false"},
+        {"name" => "list_of_strings", "value" => ["micro", "large", "xlarge"], "secured" => "false"},
+        {"name" => "list_of_strings_required", "value" => ["a", "b", "c"], "secured" => "false"},
+        {"name" => "map_with_string", "value" => {"environment" => "dev", "name" => "demo"}, "secured" => "false"},
+        {"name" => "set_of_strings", "value" => ["sg-12345678", "sg-abcdefgh"], "secured" => "false"},
+        {"name" => "tuple_of_all_primitive_types", "value" => ["a", 15, true], "secured" => "false"},
+        {"name" => "tuple_of_strings", "value" => ["192.168.1.1", "192.168.1.2"], "secured" => "false"},
+        {"name" => "extra_var", "value" => "extra", "secured" => "false"}
       ]
       params = described_class.to_normalized_cam_parameters(input_params, type_constraints)
 
-      expect(params.to_json).to(eq(expect_params.to_json))
+      expect(params).to(match(expect_params))
     end
 
     it "fails, if param of type 'string', is required, but is empty" do
@@ -218,6 +223,20 @@ RSpec.describe(Terraform::Runner::ApiParams) do
         .to raise_error(RuntimeError, "The variable 'a_object' does not have valid Hash value")
     end
 
+    it "does not fail, if type constraint is not available for a param" do
+      input_params = {
+        "extra-var-1" => "extra-value",
+      }
+
+      expect_params = [
+        {"name" => "extra-var-1", "value" => "extra-value", "secured" => "false"},
+      ]
+
+      params = described_class.to_normalized_cam_parameters(input_params, type_constraints)
+
+      expect(params).to(match(expect_params))
+    end
+
     it "converts boolean value to true" do
       input_params = {
         "a_bool"          => "t",
@@ -225,13 +244,13 @@ RSpec.describe(Terraform::Runner::ApiParams) do
       }
 
       expect_params = [
-        {:name => "a_bool", :value => true, :secured => "false"},
-        {:name => "a_bool_required", :value => true, :secured => "false"},
+        {"name" => "a_bool", "value" => true, "secured" => "false"},
+        {"name" => "a_bool_required", "value" => true, "secured" => "false"},
       ]
 
       params = described_class.to_normalized_cam_parameters(input_params, type_constraints)
 
-      expect(params.to_json).to(eq(expect_params.to_json))
+      expect(params).to(match(expect_params))
     end
 
     it "converts boolean value to false" do
@@ -241,13 +260,13 @@ RSpec.describe(Terraform::Runner::ApiParams) do
       }
 
       expect_params = [
-        {:name => "a_bool", :value => false, :secured => "false"},
-        {:name => "a_bool_required", :value => false, :secured => "false"},
+        {"name" => "a_bool", "value" => false, "secured" => "false"},
+        {"name" => "a_bool_required", "value" => false, "secured" => "false"},
       ]
 
       params = described_class.to_normalized_cam_parameters(input_params, type_constraints)
 
-      expect(params.to_json).to(eq(expect_params.to_json))
+      expect(params).to(match(expect_params))
     end
   end
 end

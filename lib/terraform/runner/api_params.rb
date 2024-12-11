@@ -48,44 +48,46 @@ module Terraform
       TRUE_VALUES = ['T', 't', true, 'true', 'True', 'TRUE'].to_set
 
       # Normalize variables values, from ManageIQ values to Terraform Runner supported values
-      # @param input_vars       [Hash]  key/value pairs as input variables for the terraform-runner run job.
-      # @param type_constraints [Array] array of type constraints objects, from Terraform Runner
+      # @param input_vars       [Hash] key/value pairs as input variables for the terraform-runner run job.
+      # @param type_constraints [Hash] key/value(type constraints object, from Terraform Runner) pairs.
       #
       # @return [Array] Array of param objects [{name,value,secured}]
       def self.to_normalized_cam_parameters(input_vars, type_constraints)
-        require 'json'
-
         input_vars.map do |k, v|
-          type_constr = type_constraints.find { |e| e['name'] == k.to_s }
-
-          is_secured = false
-          if !type_constr.nil?
-            e_secured, e_type, e_required = type_constr.values_at('secured', 'type', 'required')
-
-            is_secured = TRUE_VALUES.include?(e_secured)
-            is_required = TRUE_VALUES.include?(e_required)
-
-            case e_type
-            when "boolean"
-              v = TRUE_VALUES.include?(v)
-
-            when "map"
-              v = parse_json_value(k, v, :expected_type => Hash, :is_required => is_required)
-
-            when "list"
-              v = parse_json_value(k, v, :expected_type => Array, :is_required => is_required)
-
-            else
-              # string or number(string)
-              # (number as string, is implicitly converted by terraform, so no conversion is requried)
-              if v.blank? && is_required == true
-                raise "The variable '#{k}', cannot be empty"
-              end
-            end
-          end
+          v, is_secured = normalized_param_value(k, v, type_constraints[k])
 
           to_cam_param(k, v, :is_secured => is_secured)
         end
+      end
+
+      def self.normalized_param_value(key, value, param_type_constraint)
+        is_secured = false
+        if param_type_constraint.present?
+          param_secured, param_type, param_required = param_type_constraint.values_at('secured', 'type', 'required')
+
+          is_secured = TRUE_VALUES.include?(param_secured)
+          is_required = TRUE_VALUES.include?(param_required)
+
+          case param_type
+          when "boolean"
+            value = TRUE_VALUES.include?(value)
+
+          when "map"
+            value = parse_json_value(key, value, :expected_type => Hash, :is_required => is_required)
+
+          when "list"
+            value = parse_json_value(key, value, :expected_type => Array, :is_required => is_required)
+
+          else
+            # string or number(string)
+            # (number as string, is implicitly converted by terraform, so no conversion is requried here)
+            if value.blank? && is_required == true
+              raise "The variable '#{key}', cannot be empty"
+            end
+          end
+        end
+
+        [value, is_secured, param_type, is_required]
       end
 
       def self.parse_json_value(key, value, expected_type: Array, is_required: false)
@@ -93,6 +95,7 @@ module Terraform
           if value.empty?
             value = nil
           else
+            require 'json'
             begin
               value = JSON.parse(value)
             rescue JSON::ParserError

@@ -158,12 +158,14 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
     nil
   end
 
+  # Returns key/value(type constraints object, from Terraform Runner) pair.
+  # @return [Hash]
   def input_vars_type_constraints
     require 'json'
     payload = JSON.parse(template.payload)
-    payload['input_vars'] || []
+    (payload['input_vars'] || []).index_by { |v| v['name'] }
   rescue => error
     _log.error("Failure in parsing payload for template/#{template.id}, caused by #{error.message}")
-    []
+    {}
   end
 end
