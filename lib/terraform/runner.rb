@@ -20,7 +20,7 @@ module Terraform
       # @param template_path [String] (required) path to the terraform template directory.
       # @param input_vars    [Hash]   (optional) key/value pairs as input variables for the terraform-runner run job.
       # @param input_vars_type_constraints
-      #                      [Array]  (optional) array of type constraints objects, from Terraform Runner.
+      #                      [Hash]   (optional) key/value(type constraints object, from Terraform Runner) pair.
       # @param tags          [Hash]   (optional) key/value pairs tags for terraform-runner Provisioned resources.
       # @param credentials   [Array]  (optional) List of Authentication objects for the terraform run job.
       # @param env_vars      [Hash]   (optional) key/value pairs used as environment variables, for terraform-runner run job.
@@ -50,7 +50,7 @@ module Terraform
       # @param template_path [String] (required) path to the terraform template directory.
       # @param input_vars    [Hash]   (optional) key/value pairs as input variables for the terraform-runner run job.
       # @param input_vars_type_constraints
-      #                      [Array]  (optional) array of type constraints objects, from Terraform Runner.
+      #                      [Hash]   (optional) key/value(type constraints object, from Terraform Runner) pair.
       # @param credentials   [Array]  (optional) List of Authentication objects for the terraform run job.
       # @param env_vars      [Hash]   (optional) key/value pairs used as environment variables, for terraform-runner run job.
       #

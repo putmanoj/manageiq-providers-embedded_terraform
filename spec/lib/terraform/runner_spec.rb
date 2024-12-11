@@ -63,9 +63,9 @@ RSpec.describe(Terraform::Runner) do
       let(:input_vars) { {'name' => 'New World'} }
 
       let(:input_vars_type_constraints) do
-        [
-          {"name" => "name", "label" => "Name", "type" => "string", "description" => "name is required", "required" => true, "secured" => false, "hidden" => false, "immutable" => false, "default" => "World"},
-        ]
+        {
+          "name" => {"name" => "name", "label" => "Name", "type" => "string", "description" => "name is required", "required" => true, "secured" => false, "hidden" => false, "immutable" => false, "default" => "World"},
+        }
       end
 
       it "start running hello-world terraform template" do
@@ -235,9 +235,9 @@ RSpec.describe(Terraform::Runner) do
       let(:input_vars) { {'name' => 'New World'} }
 
       let(:input_vars_type_constraints) do
-        [
-          {"name" => "name", "label" => "Name", "type" => "string", "description" => "name is required", "required" => true, "secured" => false, "hidden" => false, "immutable" => false, "default" => "World"},
-        ]
+        {
+          "name" => {"name" => "name", "label" => "Name", "type" => "string", "description" => "name is required", "required" => true, "secured" => false, "hidden" => false, "immutable" => false, "default" => "World"},
+        }
       end
 
       it ".delete_stack to run retirement with hello-world terraform template stack" do
