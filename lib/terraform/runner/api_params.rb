@@ -105,7 +105,7 @@ module Terraform
         end
 
         if value.nil?
-          if is_required == true
+          if is_required
             raise "The variable '#{key}' does not have valid #{expected_type.name} value"
           end
         elsif !value.kind_of?(expected_type)
