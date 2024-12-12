@@ -81,7 +81,7 @@ module Terraform
           else
             # string or number(string)
             # (number as string, is implicitly converted by terraform, so no conversion is requried here)
-            if value.blank? && is_required == true
+            if value.blank? && is_required
               raise "The variable '#{key}', cannot be empty"
             end
           end
