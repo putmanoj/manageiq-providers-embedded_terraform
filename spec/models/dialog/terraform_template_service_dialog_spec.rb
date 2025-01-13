@@ -109,7 +109,7 @@ RSpec.describe Dialog::TerraformTemplateServiceDialog do
         payload['input_vars']
       end
 
-      it "creates multiple dialogs" do
+      it "creates multiple dialog-groups" do
         dialog = subject.create_dialog(dialog_label, terraform_template_with_input_vars, extra_vars)
         expect(dialog).to have_attributes(:label => dialog_label, :buttons => "submit,cancel")
 
@@ -120,7 +120,128 @@ RSpec.describe Dialog::TerraformTemplateServiceDialog do
         assert_extra_variables_group(group2)
       end
     end
+
+    context "with terraform input variable of type boolean" do
+      let(:dialog_label) { "mydialog-with-boolean-field" }
+      let(:input_vars) do
+        [{"name" => "set_password", "label" => "set_password", "type" => "boolean", "description" => "Do you want to set the password ?", "required" => false, "secured" => false, "hidden" => false, "immutable" => false, "default" => true}]
+      end
+      let(:extra_vars) do
+        {}
+      end
+
+      it "create_dialog with checkbox field, when default value is true" do
+        terraform_template = FactoryBot.create(:terraform_template, :payload => "{\"input_vars\": #{input_vars.to_json}}")
+        dialog = described_class.create_dialog(dialog_label, terraform_template, extra_vars)
+        expect(dialog).to have_attributes(:label => dialog_label, :buttons => "submit,cancel")
+
+        group1 = assert_terraform_template_variables_tab(dialog, :group_size => 1)
+        assert_terraform_variables_group(group1, input_vars, :assert_default_values => [{:position => 0, :value => "t"}])
+      end
+
+      it "create_dialog with checkbox field, when default value is empty" do
+        input_vars_copy = input_vars.deep_dup
+        input_vars_copy[0]['default'] = "" # default attribute is empty
+        terraform_template = FactoryBot.create(:terraform_template, :payload => "{\"input_vars\": #{input_vars_copy.to_json}}")
+
+        dialog = described_class.create_dialog(dialog_label, terraform_template, extra_vars)
+        expect(dialog).to have_attributes(:label => dialog_label, :buttons => "submit,cancel")
+
+        group1 = assert_terraform_template_variables_tab(dialog, :group_size => 1)
+        assert_terraform_variables_group(group1, input_vars_copy, :assert_default_values => [{:position => 0, :value => nil}])
+      end
+
+      it "create_dialog with checkbox field, when default value is not available" do
+        input_vars_copy = input_vars.deep_dup
+        input_vars_copy[0].delete('default') # no default attribute
+        terraform_template = FactoryBot.create(:terraform_template, :payload => "{\"input_vars\": #{input_vars_copy.to_json}}")
+
+        dialog = described_class.create_dialog(dialog_label, terraform_template, extra_vars)
+        expect(dialog).to have_attributes(:label => dialog_label, :buttons => "submit,cancel")
+
+        group1 = assert_terraform_template_variables_tab(dialog, :group_size => 1)
+        assert_terraform_variables_group(group1, input_vars_copy, :assert_default_values => [{:position => 0, :value => nil}])
+      end
+    end
+
+    context "with terraform input variable of type list" do
+      let(:dialog_label) { "mydialog-with-boolean-field" }
+      let(:input_vars) do
+        [
+          {"name" => "list_with_no_default_value", "label" => "list_with_no_default_value", "type" => "list", "description" => "a list with no default value", "required" => true, "secured" => false, "hidden" => false, "immutable" => false},
+          {"name" => "list_of_object_with_nested_structures", "label" => "list_of_object_with_nested_structures", "type" => "list", "description" => "list with nested structures", "required" => true, "secured" => false, "hidden" => false, "immutable" => false, "default" => [{"name" => "Production", "website" => {"routing_rules"=>"[\n  {\n    \"Condition\" = { \"KeyPrefixEquals\": \"img/\" },\n    \"Redirect\"  = { \"ReplaceKeyPrefixWith\": \"images/\" }\n  }\n]\n"}}, {"enabled" => false, "name" => "archived"}]},
+          {"name" => "list_of_objects", "label" => "list_of_objects", "type" => "list", "description" => "list of objects", "required" => true, "secured" => false, "hidden" => false, "immutable" => false, "default" => [{"external" => 8300, "internal" => 8300, "protocol" => "tcp"}]},
+          {"name" => "list_of_strings", "label" => "list_of_strings", "type" => "list", "description" => "", "required" => true, "secured" => false, "hidden" => false, "immutable" => false, "default" => ["micro", "large", "xlarge"]},
+        ]
+      end
+
+      it "create_dialog with textarea fields, with prettified default values" do
+        terraform_template = FactoryBot.create(:terraform_template, :payload => "{\"input_vars\": #{input_vars.to_json}}")
+        assert_default_values = [
+          {:position => 0, :value => nil},
+          {:position => 1, :value => JSON.pretty_generate(input_vars[1]['default'])},
+          {:position => 2, :value => JSON.pretty_generate(input_vars[2]['default'])},
+          {:position => 3, :value => JSON.pretty_generate(input_vars[3]['default'])}
+        ]
+
+        dialog = described_class.create_dialog(dialog_label, terraform_template, {})
+        expect(dialog).to have_attributes(:label => dialog_label, :buttons => "submit,cancel")
+
+        group1 = assert_terraform_template_variables_tab(dialog, :group_size => 1)
+        assert_terraform_variables_group(group1, input_vars, :assert_default_values => assert_default_values)
+      end
+
+      context "with terraform input variable of type map (ie object)" do
+        let(:dialog_label) { "mydialog-with-boolean-field" }
+        let(:input_vars) do
+          [
+            {"name" => "map_without_default_value", "label" => "map_without_default_value", "type" => "map", "description" => "a json map", "required" => true, "secured" => false, "hidden" => false, "immutable" => false},
+            {"name" => "a_object", "label" => "a_object", "type" => "map", "description" => "", "required" => true, "secured" => false, "hidden" => false, "immutable" => false, "default" => {"age" => 30, "email" => "sam@example.com", "name" => "Sam"}},
+          ]
+        end
+
+        it "create_dialog with textarea fields, with prettified default values" do
+          terraform_template = FactoryBot.create(:terraform_template, :payload => "{\"input_vars\": #{input_vars.to_json}}")
+          assert_default_values = [
+            {:position => 0, :value => nil},
+            {:position => 1, :value => JSON.pretty_generate(input_vars[1]['default'])}
+          ]
+
+          dialog = described_class.create_dialog(dialog_label, terraform_template, {})
+          expect(dialog).to have_attributes(:label => dialog_label, :buttons => "submit,cancel")
+
+          group1 = assert_terraform_template_variables_tab(dialog, :group_size => 1)
+          assert_terraform_variables_group(group1, input_vars, :assert_default_values => assert_default_values)
+        end
+      end
+
+      context "with terraform input variable of type number" do
+        let(:dialog_label) { "mydialog-with-number-field" }
+        let(:input_vars) do
+          [
+            {"name" => "a_number", "label" => "a_number", "type" => "number", "description" => "This a number type, with default value", "required" => false, "secured" => false, "hidden" => false, "immutable" => false, "default" => 10},
+            {"name" => "a_number_required", "label" => "a_number_required", "type" => "number", "description" => "This a number type, value is required to provider from user", "required" => true, "secured" => false, "hidden" => false, "immutable" => false},
+          ]
+        end
+
+        it "create_dialog with textbox fields" do
+          terraform_template = FactoryBot.create(:terraform_template, :payload => "{\"input_vars\": #{input_vars.to_json}}")
+          assert_default_values = [
+            {:position => 0, :value => "10"},
+            {:position => 1, :value => nil}
+          ]
+
+          dialog = described_class.create_dialog(dialog_label, terraform_template, {})
+          expect(dialog).to have_attributes(:label => dialog_label, :buttons => "submit,cancel")
+
+          group1 = assert_terraform_template_variables_tab(dialog, :group_size => 1)
+          assert_terraform_variables_group(group1, input_vars, :assert_default_values => assert_default_values)
+        end
+      end
+    end
   end
+
+  # -----------------------------------------------------------------------------------------------------------------
 
   def assert_variables_tab(dialog, group_size: 1)
     tabs = dialog.dialog_tabs
@@ -173,14 +294,88 @@ RSpec.describe Dialog::TerraformTemplateServiceDialog do
     assert_field(fields[0], DialogFieldTextBox, :name => 'name', :default_value => field_value, :data_type => 'string')
   end
 
-  def assert_terraform_variables_group(group, input_vars)
+  def assert_terraform_variables_group(group, input_vars, assert_default_values: [])
     expect(group).to have_attributes(:label => "Terraform Template Variables", :display => "edit")
 
     fields = group.dialog_fields
     expect(fields.size).to eq(input_vars.length)
 
     input_vars.each_with_index do |var, index|
-      assert_field(fields[index], DialogFieldTextBox, :name => var['name'], :default_value => var['default'], :data_type => 'string')
+      name, value, required, readonly, _hidden, label, description, data_type = var.values_at(
+        "name", "default", "required", "immutable", "hidden", "label", "description", "type"
+      )
+
+      assert_default_value = assert_default_values.find { |e| e[:position] == index }
+      value = assert_default_value[:value] if assert_default_value.present?
+      description = name if description.blank?
+
+      case data_type
+      when 'boolean'
+        assert_field(fields[index], DialogFieldCheckBox,
+                     :name           => name,
+                     :default_value  => value,
+                     :data_type      => 'boolean',
+                     :label          => name,
+                     :description    => description,
+                     :reconfigurable => true,
+                     :position       => index,
+                     :read_only      => readonly)
+      when 'list'
+        assert_field(fields[index], DialogFieldTextAreaBox,
+                     :name              => name,
+                     :default_value     => value,
+                     :data_type         => 'string',
+                     :display           => "edit",
+                     :label             => name,
+                     :description       => description,
+                     :reconfigurable    => true,
+                     :position          => index,
+                     :read_only         => readonly,
+                     :validator_type    => 'regex',
+                     :validator_rule    => described_class::JSONSTR_LIST_REGEX,
+                     :validator_message => "This field value must be a JSON List")
+      when 'map'
+        assert_field(fields[index], DialogFieldTextAreaBox,
+                     :name              => name,
+                     :default_value     => value,
+                     :data_type         => 'string',
+                     :display           => "edit",
+                     :label             => name,
+                     :description       => description,
+                     :reconfigurable    => true,
+                     :position          => index,
+                     :read_only         => readonly,
+                     :validator_type    => 'regex',
+                     :validator_rule    => described_class::JSONSTR_OBJECT_REGEX,
+                     :validator_message => "This field value must be a JSON Object or Map")
+      when 'number'
+        assert_field(fields[index], DialogFieldTextBox,
+                     :name              => name,
+                     :default_value     => value,
+                     :data_type         => 'string',
+                     :display           => "edit",
+                     :label             => name,
+                     :description       => description,
+                     :reconfigurable    => true,
+                     :position          => index,
+                     :read_only         => readonly,
+                     :validator_type    => 'regex',
+                     :validator_rule    => described_class::NUMBER_REGEX,
+                     :validator_message => "This field value must be a number")
+      else
+        assert_field(fields[index], DialogFieldTextBox,
+                     :name           => name,
+                     :default_value  => value,
+                     :data_type      => 'string',
+                     :display        => "edit",
+                     :required       => required,
+                     :label          => label,
+                     :description    => description,
+                     :reconfigurable => true,
+                     :position       => index,
+                     :dialog_group   => group,
+                     :read_only      => readonly)
+      end
     end
   end
 end

@@ -19,20 +19,24 @@ module Terraform
       #
       # @param template_path [String] (required) path to the terraform template directory.
       # @param input_vars    [Hash]   (optional) key/value pairs as input variables for the terraform-runner run job.
+      # @param input_vars_type_constraints
+      #                      [Hash]   (optional) key/value(type constraints object, from Terraform Runner) pair.
       # @param tags          [Hash]   (optional) key/value pairs tags for terraform-runner Provisioned resources.
       # @param credentials   [Array]  (optional) List of Authentication objects for the terraform run job.
       # @param env_vars      [Hash]   (optional) key/value pairs used as environment variables, for terraform-runner run job.
       #
       # @return [Terraform::Runner::ResponseAsync] Response object of terraform-runner api call
-      def create_stack(template_path, input_vars: {}, tags: nil, credentials: [], env_vars: {})
+      def create_stack(template_path, input_vars: {}, input_vars_type_constraints: [], tags: nil, credentials: [], env_vars: {})
         _log.debug("Run_aysnc/create_stack for template: #{template_path}")
         if template_path.present?
+          input_params = ApiParams.to_normalized_cam_parameters(input_vars, input_vars_type_constraints)
+
           response = create_stack_job(
             template_path,
-            :input_vars  => input_vars,
-            :tags        => tags,
-            :credentials => credentials,
-            :env_vars    => env_vars
+            :input_params => input_params,
+            :tags         => tags,
+            :credentials  => credentials,
+            :env_vars     => env_vars
           )
           Terraform::Runner::ResponseAsync.new(response.stack_id)
         else
@@ -45,19 +49,22 @@ module Terraform
       # @param stack_id      [String] (optional) required, if running ResourceAction::RETIREMENT action, used by Terraform-Runner stack_delete job.
       # @param template_path [String] (required) path to the terraform template directory.
       # @param input_vars    [Hash]   (optional) key/value pairs as input variables for the terraform-runner run job.
+      # @param input_vars_type_constraints
+      #                      [Hash]   (optional) key/value(type constraints object, from Terraform Runner) pair.
       # @param credentials   [Array]  (optional) List of Authentication objects for the terraform run job.
       # @param env_vars      [Hash]   (optional) key/value pairs used as environment variables, for terraform-runner run job.
       #
       # @return [Terraform::Runner::ResponseAsync] Response object of terraform-runner api call
-      def delete_stack(stack_id, template_path, input_vars: {}, credentials: [], env_vars: {})
+      def delete_stack(stack_id, template_path, input_vars: {}, input_vars_type_constraints: [], credentials: [], env_vars: {})
         if stack_id.present? && template_path.present?
           _log.debug("Run_aysnc/delete_stack('#{stack_id}') for template: #{template_path}")
+          input_params = ApiParams.to_normalized_cam_parameters(input_vars, input_vars_type_constraints)
           response = delete_stack_job(
             stack_id,
             template_path,
-            :input_vars  => input_vars,
-            :credentials => credentials,
-            :env_vars    => env_vars
+            :input_params => input_params,
+            :credentials  => credentials,
+            :env_vars     => env_vars
           )
           Terraform::Runner::ResponseAsync.new(response.stack_id)
         else
@@ -153,7 +160,7 @@ module Terraform
       # Create TerraformRunner Stack Job
       def create_stack_job(
         template_path,
-        input_vars: {},
+        input_params: [],
         tags: nil,
         credentials: [],
         env_vars: {},
@@ -169,7 +176,7 @@ module Terraform
           :name            => name,
           :tenantId        => tenant_id,
           :templateZipFile => encoded_zip_file,
-          :parameters      => ApiParams.to_cam_parameters(input_vars)
+          :parameters      => input_params,
         }
 
         http_response = terraform_runner_client.post(
@@ -185,7 +192,7 @@ module Terraform
       def delete_stack_job(
         stack_id,
         template_path,
-        input_vars: {},
+        input_params: [],
         credentials: [],
         env_vars: {}
       )
@@ -200,7 +207,7 @@ module Terraform
           :name            => name,
           :tenantId        => tenant_id,
           :templateZipFile => encoded_zip_file,
-          :parameters      => ApiParams.to_cam_parameters(input_vars)
+          :parameters      => input_params,
         }
 
         http_response = terraform_runner_client.post(

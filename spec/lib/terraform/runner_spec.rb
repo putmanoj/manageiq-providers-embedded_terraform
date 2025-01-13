@@ -32,7 +32,7 @@ RSpec.describe(Terraform::Runner) do
   end
 
   context '.create_stack for hello-world' do
-    describe '.create_stack with input_var' do
+    describe '.create_stack with input_vars' do
       create_stub = nil
       retrieve_stub = nil
 
@@ -62,8 +62,14 @@ RSpec.describe(Terraform::Runner) do
 
       let(:input_vars) { {'name' => 'New World'} }
 
+      let(:input_vars_type_constraints) do
+        {
+          "name" => {"name" => "name", "label" => "Name", "type" => "string", "description" => "name is required", "required" => true, "secured" => false, "hidden" => false, "immutable" => false, "default" => "World"},
+        }
+      end
+
       it "start running hello-world terraform template" do
-        async_response = Terraform::Runner.create_stack(File.join(__dir__, "runner/data/hello-world"), :input_vars => input_vars)
+        async_response = Terraform::Runner.create_stack(File.join(__dir__, "runner/data/hello-world"), :input_vars => input_vars, :input_vars_type_constraints => input_vars_type_constraints)
         expect(create_stub).to(have_been_requested.times(1))
 
         response = async_response.response
@@ -78,7 +84,7 @@ RSpec.describe(Terraform::Runner) do
       end
 
       it "handles trailing '/' in template path" do
-        async_response = Terraform::Runner.create_stack(File.join(__dir__, "runner/data/hello-world/"), :input_vars => input_vars)
+        async_response = Terraform::Runner.create_stack(File.join(__dir__, "runner/data/hello-world/"), :input_vars => input_vars, :input_vars_type_constraints => input_vars_type_constraints)
         expect(create_stub).to(have_been_requested.times(1))
 
         response = async_response.response
@@ -228,11 +234,18 @@ RSpec.describe(Terraform::Runner) do
 
       let(:input_vars) { {'name' => 'New World'} }
 
+      let(:input_vars_type_constraints) do
+        {
+          "name" => {"name" => "name", "label" => "Name", "type" => "string", "description" => "name is required", "required" => true, "secured" => false, "hidden" => false, "immutable" => false, "default" => "World"},
+        }
+      end
+
       it ".delete_stack to run retirement with hello-world terraform template stack" do
         async_response = Terraform::Runner.delete_stack(
           @hello_world_retrieve_delete_response['stack_id'],
           File.join(__dir__, "runner/data/hello-world"),
-          :input_vars => input_vars
+          :input_vars                  => input_vars,
+          :input_vars_type_constraints => input_vars_type_constraints
         )
         expect(delete_stub).to(have_been_requested.times(1))
 
