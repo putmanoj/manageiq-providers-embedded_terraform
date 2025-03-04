@@ -1,6 +1,5 @@
 :ems:
   :ems_embedded_terraform:
-    :blacklisted_event_names: []
     :event_handling:
       :event_groups:
 :ems_refresh:
