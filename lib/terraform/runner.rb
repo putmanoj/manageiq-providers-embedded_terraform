@@ -15,7 +15,7 @@ module Terraform
         @available = false
       end
 
-      # Provision or Create (terraform apply) stack in terraform-runner from a terraform template.
+      # Provision or Create (terraform apply) a stack in terraform-runner for a terraform template.
       #
       # @param template_path [String] (required) path to the terraform template directory.
       # @param input_vars    [Hash]   (optional) key/value pairs as input variables for the terraform-runner run job.
@@ -24,20 +24,25 @@ module Terraform
       # @param tags          [Hash]   (optional) key/value pairs tags for terraform-runner Provisioned resources.
       # @param credentials   [Array]  (optional) List of Authentication objects for the terraform run job.
       # @param env_vars      [Hash]   (optional) key/value pairs used as environment variables, for terraform-runner run job.
+      # @param nane          [String] (optional) name for the stack in terraform-runner.
       #
       # @return [Terraform::Runner::ResponseAsync] Response object of terraform-runner api call
-      def create_stack(template_path, input_vars: {}, input_vars_type_constraints: [], tags: nil, credentials: [], env_vars: {})
+      def create_stack(template_path, input_vars: {}, input_vars_type_constraints: [], tags: nil, credentials: [], env_vars: {},
+                       name: "stack-#{rand(36**8).to_s(36)}")
         _log.debug("Run_aysnc/create_stack for template: #{template_path}")
         if template_path.present?
           input_params = ApiParams.to_normalized_cam_parameters(input_vars, input_vars_type_constraints)
-
-          response = create_stack_job(
+          payload = stack_job_payload(
             template_path,
             :input_params => input_params,
             :tags         => tags,
             :credentials  => credentials,
             :env_vars     => env_vars
           )
+          payload[:name] = name
+
+          response = run_terraform_runner_api("api/stack/create", payload)
+
           Terraform::Runner::ResponseAsync.new(response.stack_id)
         else
           raise "'template_path' is required for #{ResourceAction::Provision} action"
@@ -58,18 +63,23 @@ module Terraform
       def update_stack(stack_id, template_path, input_vars: {}, input_vars_type_constraints: [], credentials: [], env_vars: {})
         if stack_id.present? && template_path.present?
           _log.debug("Run_aysnc/update_stack('#{stack_id}') for template: #{template_path}")
+
           input_params = ApiParams.to_normalized_cam_parameters(input_vars, input_vars_type_constraints)
-          response = update_stack_job(
-            stack_id,
+
+          payload = stack_job_payload(
             template_path,
+            :stack_id     => stack_id,
             :input_params => input_params,
             :credentials  => credentials,
             :env_vars     => env_vars
           )
+
+          response = run_terraform_runner_api("api/stack/apply", payload)
+
           Terraform::Runner::ResponseAsync.new(response.stack_id)
         else
-          _log.error("'stack_id' && 'template_path' are required for #{ResourceAction::RETIREMENT} action")
-          raise "'stack_id' && 'template_path' are required for #{ResourceAction::RETIREMENT} action"
+          _log.error("'stack_id' && 'template_path' are required for #{ResourceAction::RECONFIGURE} action")
+          raise "'stack_id' && 'template_path' are required for #{ResourceAction::RECONFIGURE} action"
         end
       end
 
@@ -87,14 +97,19 @@ module Terraform
       def delete_stack(stack_id, template_path, input_vars: {}, input_vars_type_constraints: [], credentials: [], env_vars: {})
         if stack_id.present? && template_path.present?
           _log.debug("Run_aysnc/delete_stack('#{stack_id}') for template: #{template_path}")
+
           input_params = ApiParams.to_normalized_cam_parameters(input_vars, input_vars_type_constraints)
-          response = delete_stack_job(
-            stack_id,
+
+          payload = stack_job_payload(
             template_path,
+            :stack_id     => stack_id,
             :input_params => input_params,
             :credentials  => credentials,
             :env_vars     => env_vars
           )
+
+          response = run_terraform_runner_api("api/stack/delete", payload)
+
           Terraform::Runner::ResponseAsync.new(response.stack_id)
         else
           _log.error("'stack_id' && 'template_path' are required for #{ResourceAction::RETIREMENT} action")
@@ -102,25 +117,27 @@ module Terraform
         end
       end
 
-      # Stop running terraform-runner job, by stack_id
+      # Stop/Cancel running terraform-runner job, by stack_id
       #
       # @param stack_id [String] stack_id from the terraforn-runner job
       #
       # @return [Terraform::Runner::Response] Response object with result of terraform run
       def stop_async(stack_id)
-        cancel_stack_job(stack_id)
+        payload = {:stack_id => stack_id}
+        run_terraform_runner_api("api/stack/cancel", payload)
       end
 
       # To simplify clients who want to stop a running stack job, we alias it to call stop_async
       alias stop_stack stop_async
 
-      # Fetch stack object(with result/status), by stack_id from terraform-runner
+      # Fetch/Retrieve stack object(with result/status), by stack_id from terraform-runner
       #
       # @param stack_id [String] stack_id for the terraforn-runner stack job
       #
       # @return [Terraform::Runner::Response] Response object with result of terraform run
       def fetch_result_by_stack_id(stack_id)
-        retrieve_stack_job(stack_id)
+        payload = {:stack_id => stack_id}
+        run_terraform_runner_api("api/stack/retrieve", payload)
       end
 
       # To simplify clients who want to fetch stack object from terraform-runner
@@ -186,117 +203,41 @@ module Terraform
         end
       end
 
-      # Create TerraformRunner Stack Job
-      def create_stack_job(
+      # Create TerraformRunner Stack Job payload
+      def stack_job_payload(
         template_path,
         input_params: [],
-        tags: nil,
         credentials: [],
+        tags: {},
         env_vars: {},
-        name: "stack-#{rand(36**8).to_s(36)}"
+        stack_id: nil
       )
-        _log.info("start stack_job for template: #{template_path}")
-        tenant_id = stack_tenant_id
+
+        _log.info("create stack_job payload for template: #{template_path}")
         encoded_zip_file = encoded_zip_from_directory(template_path)
 
-        # TODO: use tags,env_vars
+        # TODO: proper usage of tags,env_vars
         payload = {
           :cloud_providers => provider_connection_parameters(credentials),
-          :name            => name,
-          :tenantId        => tenant_id,
+          :tenantId        => stack_tenant_id,
           :templateZipFile => encoded_zip_file,
           :parameters      => input_params,
+          :tags            => tags,
+          :env_vars        => env_vars,
         }
+        payload[:stack_id] = stack_id if stack_id.present?
 
+        payload
+      end
+
+      def run_terraform_runner_api(action_endpoint, payload)
         http_response = terraform_runner_client.post(
-          "api/stack/create",
+          action_endpoint,
           *json_post_arguments(payload)
         )
         _log.debug("==== http_response.body: \n #{http_response.body}")
-        _log.info("stack_job for template: #{template_path} running ...")
-        Terraform::Runner::Response.parsed_response(http_response)
-      end
 
-      # Update([re]apply) existing stack, created by TerraformRunner.
-      def update_stack_job(
-        stack_id,
-        template_path,
-        input_params: [],
-        credentials: [],
-        env_vars: {}
-      )
-        _log.info("start stack_job for template: #{template_path}")
-        tenant_id = stack_tenant_id
-        encoded_zip_file = encoded_zip_from_directory(template_path)
-
-        # TODO: use tags,env_vars
-        payload = {
-          :stack_id        => stack_id,
-          :cloud_providers => provider_connection_parameters(credentials),
-          :name            => name,
-          :tenantId        => tenant_id,
-          :templateZipFile => encoded_zip_file,
-          :parameters      => input_params,
-        }
-
-        http_response = terraform_runner_client.post(
-          "api/stack/apply",
-          *json_post_arguments(payload)
-        )
-        _log.debug("==== http_response.body: \n #{http_response.body}")
-        _log.info("stack_job for template: #{template_path} running ...")
-        Terraform::Runner::Response.parsed_response(http_response)
-      end
-
-
-      # Delete(destroy) existing stack, created by TerraformRunner
-      def delete_stack_job(
-        stack_id,
-        template_path,
-        input_params: [],
-        credentials: [],
-        env_vars: {}
-      )
-        _log.info("start stack_job for template: #{template_path}")
-        tenant_id = stack_tenant_id
-        encoded_zip_file = encoded_zip_from_directory(template_path)
-
-        # TODO: use tags,env_vars
-        payload = {
-          :stack_id        => stack_id,
-          :cloud_providers => provider_connection_parameters(credentials),
-          :name            => name,
-          :tenantId        => tenant_id,
-          :templateZipFile => encoded_zip_file,
-          :parameters      => input_params,
-        }
-
-        http_response = terraform_runner_client.post(
-          "api/stack/delete",
-          *json_post_arguments(payload)
-        )
-        _log.debug("==== http_response.body: \n #{http_response.body}")
-        _log.info("stack_job for template: #{template_path} running ...")
-        Terraform::Runner::Response.parsed_response(http_response)
-      end
-
-      # Retrieve TerraformRunner Stack Job details
-      def retrieve_stack_job(stack_id)
-        http_response = terraform_runner_client.post(
-          "api/stack/retrieve",
-          *json_post_arguments({:stack_id => stack_id})
-        )
-        _log.info("==== Retrieve Stack Response: \n #{http_response.body}")
-        Terraform::Runner::Response.parsed_response(http_response)
-      end
-
-      # Cancel/Stop running TerraformRunner Stack Job
-      def cancel_stack_job(stack_id)
-        http_response = terraform_runner_client.post(
-          "api/stack/cancel",
-          *json_post_arguments({:stack_id => stack_id})
-        )
-        _log.info("==== Cancel Stack Response: \n #{http_response.body}")
+        _log.info("terraform-runnner[#{action_endpoint}] running ...")
         Terraform::Runner::Response.parsed_response(http_response)
       end
 
