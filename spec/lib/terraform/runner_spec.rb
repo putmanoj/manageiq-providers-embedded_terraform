@@ -12,6 +12,8 @@ RSpec.describe(Terraform::Runner) do
 
     @hello_world_create_response = JSON.parse(File.read(File.join(__dir__, "runner/data/responses/hello-world-create-in-progress.json")))
     @hello_world_retrieve_create_response = JSON.parse(File.read(File.join(__dir__, "runner/data/responses/hello-world-retrieve-create-success.json")))
+    @hello_world_update_response = JSON.parse(File.read(File.join(__dir__, "runner/data/responses/hello-world-update-in-progress.json")))
+    @hello_world_retrieve_update_response = JSON.parse(File.read(File.join(__dir__, "runner/data/responses/hello-world-update-success.json")))    
     @hello_world_delete_response = JSON.parse(File.read(File.join(__dir__, "runner/data/responses/hello-world-delete-in-progress.json")))
     @hello_world_retrieve_delete_response = JSON.parse(File.read(File.join(__dir__, "runner/data/responses/hello-world-delete-success.json")))
   end
@@ -40,7 +42,7 @@ RSpec.describe(Terraform::Runner) do
         body = JSON.parse(req.body)
         expect(body["name"]).to(start_with('stack-'))
         expect(body).to(have_key('templateZipFile'))
-        expect(body["parameters"]).to(eq([{"name" => "name", "value" => "New World", "secured" => "false"}]))
+        expect(body["parameters"]).to(eq([{"name" => "name", "value" => "New-World", "secured" => "false"}]))
         expect(body["cloud_providers"]).to(eq([]))
       end
 
@@ -60,7 +62,7 @@ RSpec.describe(Terraform::Runner) do
                         )
       end
 
-      let(:input_vars) { {'name' => 'New World'} }
+      let(:input_vars) { {'name' => 'New-World'} }
 
       let(:input_vars_type_constraints) do
         {
@@ -202,6 +204,64 @@ RSpec.describe(Terraform::Runner) do
       end
     end
 
+    describe '.update_stack to run Reconfiguration action' do
+      update_stub = nil
+      retrieve_stub = nil
+
+      def verify_req(req)
+        body = JSON.parse(req.body)
+        expect(body["stack_id"]).to(eq(@hello_world_retrieve_update_response['stack_id']))
+        expect(body).to(have_key('templateZipFile'))
+        expect(body["parameters"]).to(eq([{"name" => "name", "value" => "Future-World", "secured" => "false"}]))
+        expect(body["cloud_providers"]).to(eq([]))
+      end
+
+      before do
+        ENV["TERRAFORM_RUNNER_URL"] = "https://1.2.3.4:7000"
+
+        update_stub = stub_request(:post, "https://1.2.3.4:7000/api/stack/apply")
+                      .with { |req| verify_req(req) }
+                      .to_return(
+                        :status => 200,
+                        :body   => @hello_world_update_response.to_json
+                      )
+
+        retrieve_stub = stub_request(:post, "https://1.2.3.4:7000/api/stack/retrieve")
+                  .with(:body => hash_including({:stack_id => @hello_world_retrieve_update_response['stack_id']}))
+                  .to_return(
+                    :status => 200,
+                    :body   => @hello_world_retrieve_update_response.to_json
+                  )
+      end
+
+      let(:input_vars) { {'name' => 'Future-World'} }
+
+      let(:input_vars_type_constraints) do
+        {
+          "name" => {"name" => "name", "label" => "Name", "type" => "string", "description" => "name is required", "required" => true, "secured" => false, "hidden" => false, "immutable" => false, "default" => "World"},
+        }
+      end
+
+      it ".update_stack to run retirement with hello-world terraform template stack" do
+        async_response = Terraform::Runner.update_stack(
+          @hello_world_retrieve_update_response['stack_id'],
+          File.join(__dir__, "runner/data/hello-world"),
+          :input_vars                  => input_vars,
+          :input_vars_type_constraints => input_vars_type_constraints
+        )
+        expect(update_stub).to(have_been_requested.times(1))
+
+        response = async_response.response
+        expect(retrieve_stub).to(have_been_requested.times(1))
+        expect(response.stack_id).to(eq(@hello_world_update_response['stack_id']))
+        expect(response.action).to(eq('APPLY'))
+        expect(response.stack_name).to(eq(@hello_world_update_response['stack_name']))
+
+        expect(response.status).to(eq('SUCCESS'), "terraform-runner failed with:\n#{response.status}")
+        expect(response.message).to(include('Apply complete! Resources: 1 added, 0 changed, 1 destroyed.'))
+      end
+    end    
+
     describe '.delete_stack to run Retirement action' do
       delete_stub = nil
       delete_retrieve_stub = nil
@@ -210,7 +270,7 @@ RSpec.describe(Terraform::Runner) do
         body = JSON.parse(req.body)
         expect(body["stack_id"]).to(eq(@hello_world_retrieve_delete_response['stack_id']))
         expect(body).to(have_key('templateZipFile'))
-        expect(body["parameters"]).to(eq([{"name" => "name", "value" => "New World", "secured" => "false"}]))
+        expect(body["parameters"]).to(eq([{"name" => "name", "value" => "Future-World", "secured" => "false"}]))
         expect(body["cloud_providers"]).to(eq([]))
       end
 
@@ -232,7 +292,7 @@ RSpec.describe(Terraform::Runner) do
                                )
       end
 
-      let(:input_vars) { {'name' => 'New World'} }
+      let(:input_vars) { {'name' => 'Future-World'} }
 
       let(:input_vars_type_constraints) do
         {
