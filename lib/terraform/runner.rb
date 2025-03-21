@@ -44,6 +44,35 @@ module Terraform
         end
       end
 
+      # Reconfigure or Update(terraform apply) a existing stack in terraform-runner.
+      #
+      # @param stack_id      [String] (optional) required, if running ResourceAction::RECONFIGURE action, used by Terraform-Runner update job.
+      # @param template_path [String] (required) path to the terraform template directory.
+      # @param input_vars    [Hash]   (optional) key/value pairs as input variables for the terraform-runner run job.
+      # @param input_vars_type_constraints
+      #                      [Hash]   (optional) key/value(type constraints object, from Terraform Runner) pair.
+      # @param credentials   [Array]  (optional) List of Authentication objects for the terraform run job.
+      # @param env_vars      [Hash]   (optional) key/value pairs used as environment variables, for terraform-runner run job.
+      #
+      # @return [Terraform::Runner::ResponseAsync] Response object of terraform-runner api call
+      def update_stack(stack_id, template_path, input_vars: {}, input_vars_type_constraints: [], credentials: [], env_vars: {})
+        if stack_id.present? && template_path.present?
+          _log.debug("Run_aysnc/update_stack('#{stack_id}') for template: #{template_path}")
+          input_params = ApiParams.to_normalized_cam_parameters(input_vars, input_vars_type_constraints)
+          response = update_stack_job(
+            stack_id,
+            template_path,
+            :input_params => input_params,
+            :credentials  => credentials,
+            :env_vars     => env_vars
+          )
+          Terraform::Runner::ResponseAsync.new(response.stack_id)
+        else
+          _log.error("'stack_id' && 'template_path' are required for #{ResourceAction::RETIREMENT} action")
+          raise "'stack_id' && 'template_path' are required for #{ResourceAction::RETIREMENT} action"
+        end
+      end
+
       # Retire or Delete(terraform destroy) the terraform-runner created stack resources.
       #
       # @param stack_id      [String] (optional) required, if running ResourceAction::RETIREMENT action, used by Terraform-Runner stack_delete job.
@@ -188,7 +217,39 @@ module Terraform
         Terraform::Runner::Response.parsed_response(http_response)
       end
 
-      # Delete(destroy) stack created by TerraformRunner Stack Job
+      # Update([re]apply) existing stack, created by TerraformRunner.
+      def update_stack_job(
+        stack_id,
+        template_path,
+        input_params: [],
+        credentials: [],
+        env_vars: {}
+      )
+        _log.info("start stack_job for template: #{template_path}")
+        tenant_id = stack_tenant_id
+        encoded_zip_file = encoded_zip_from_directory(template_path)
+
+        # TODO: use tags,env_vars
+        payload = {
+          :stack_id        => stack_id,
+          :cloud_providers => provider_connection_parameters(credentials),
+          :name            => name,
+          :tenantId        => tenant_id,
+          :templateZipFile => encoded_zip_file,
+          :parameters      => input_params,
+        }
+
+        http_response = terraform_runner_client.post(
+          "api/stack/apply",
+          *json_post_arguments(payload)
+        )
+        _log.debug("==== http_response.body: \n #{http_response.body}")
+        _log.info("stack_job for template: #{template_path} running ...")
+        Terraform::Runner::Response.parsed_response(http_response)
+      end
+
+
+      # Delete(destroy) existing stack, created by TerraformRunner
       def delete_stack_job(
         stack_id,
         template_path,
