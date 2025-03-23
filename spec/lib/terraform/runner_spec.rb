@@ -13,7 +13,7 @@ RSpec.describe(Terraform::Runner) do
     @hello_world_create_response = JSON.parse(File.read(File.join(__dir__, "runner/data/responses/hello-world-create-in-progress.json")))
     @hello_world_retrieve_create_response = JSON.parse(File.read(File.join(__dir__, "runner/data/responses/hello-world-retrieve-create-success.json")))
     @hello_world_update_response = JSON.parse(File.read(File.join(__dir__, "runner/data/responses/hello-world-update-in-progress.json")))
-    @hello_world_retrieve_update_response = JSON.parse(File.read(File.join(__dir__, "runner/data/responses/hello-world-update-success.json")))    
+    @hello_world_retrieve_update_response = JSON.parse(File.read(File.join(__dir__, "runner/data/responses/hello-world-update-success.json")))
     @hello_world_delete_response = JSON.parse(File.read(File.join(__dir__, "runner/data/responses/hello-world-delete-in-progress.json")))
     @hello_world_retrieve_delete_response = JSON.parse(File.read(File.join(__dir__, "runner/data/responses/hello-world-delete-success.json")))
   end
@@ -227,11 +227,11 @@ RSpec.describe(Terraform::Runner) do
                       )
 
         retrieve_stub = stub_request(:post, "https://1.2.3.4:7000/api/stack/retrieve")
-                  .with(:body => hash_including({:stack_id => @hello_world_retrieve_update_response['stack_id']}))
-                  .to_return(
-                    :status => 200,
-                    :body   => @hello_world_retrieve_update_response.to_json
-                  )
+                        .with(:body => hash_including({:stack_id => @hello_world_retrieve_update_response['stack_id']}))
+                        .to_return(
+                          :status => 200,
+                          :body   => @hello_world_retrieve_update_response.to_json
+                        )
       end
 
       let(:input_vars) { {'name' => 'Future-World'} }
@@ -260,7 +260,7 @@ RSpec.describe(Terraform::Runner) do
         expect(response.status).to(eq('SUCCESS'), "terraform-runner failed with:\n#{response.status}")
         expect(response.message).to(include('Apply complete! Resources: 1 added, 0 changed, 1 destroyed.'))
       end
-    end    
+    end
 
     describe '.delete_stack to run Retirement action' do
       delete_stub = nil
