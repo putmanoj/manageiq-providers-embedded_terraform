@@ -6,25 +6,29 @@ module Terraform
       attr_reader :request_arguments, :action_type
 
       def self.build_from_hash(values)
-        Request.new(values['action_type'])
-               .template_path(values['template_path'])
-               .name(values['name'])
-               .credentials(values['credentials'])
-               .input_vars(values['input_vars'], values['input_vars_type_constraints'])
-               .tenant_id(values['tenant_id'])
-               .stack_id(values['stack_id'])
-               .tags(values['stack_id'])
-               .env_vars(values['env_vars'])
+        Request.new(values[:action_type])
+               .template_path(values[:template_path])
+               .name(values[:name])
+               .credentials(values[:credentials])
+               .input_vars(values[:input_vars], values[:input_vars_type_constraints])
+               .tenant_id(values[:tenant_id])
+               .stack_id(values[:stack_id])
+               .tags(values[:tags])
+               .env_vars(values[:env_vars])
       end
 
       def initialize(action_type)
         @action_type = action_type
-        @request_arguments = {
-          :cloud_providers => []
-        }
+        @request_arguments = {}
       end
 
       def build_json_post_arguments
+        case @action_type
+        when ActionType::CREATE, ActionType::APPLY, ActionType::DELETE
+          if !@request_arguments.key?(:cloud_providers)
+            @request_arguments[:cloud_providers] = []
+          end
+        end
         validate
         json_post_arguments
       end
@@ -71,7 +75,7 @@ module Terraform
       end
 
       def credentials(credentials)
-        @request_arguments[:cloud_providers] = provider_connection_parameters(credentials) if credentials.present?
+        @request_arguments[:cloud_providers] = provider_connection_parameters(credentials)
         self
       end
 

@@ -30,22 +30,18 @@ module Terraform
       def create_stack(template_path, input_vars: {}, input_vars_type_constraints: [], tags: nil, credentials: [], env_vars: {},
                        name: "stack-#{rand(36**8).to_s(36)}")
         _log.debug("Run_aysnc/create_stack for template: #{template_path}")
-        if template_path.present?
-          response = run_terraform_runner_stack_api(
-            Request.new(ActionType::CREATE)
-              .template_path(template_path)
-              .name(name)
-              .credentials(credentials)
-              .input_vars(input_vars, input_vars_type_constraints)
-              .tenant_id(stack_tenant_id)
-              .tags(tags)
-              .env_vars(env_vars)
-          )
+        response = run_terraform_runner_stack_api(
+          Request.new(ActionType::CREATE)
+            .template_path(template_path)
+            .name(name)
+            .credentials(credentials)
+            .input_vars(input_vars, input_vars_type_constraints)
+            .tenant_id(stack_tenant_id)
+            .tags(tags)
+            .env_vars(env_vars)
+        )
 
-          Terraform::Runner::ResponseAsync.new(response.stack_id)
-        else
-          raise "'template_path' is required for #{ResourceAction::Provision} action"
-        end
+        Terraform::Runner::ResponseAsync.new(response.stack_id)
       end
 
       # Reconfigure or Update(terraform apply) a existing stack in terraform-runner.
@@ -60,24 +56,17 @@ module Terraform
       #
       # @return [Terraform::Runner::ResponseAsync] Response object of terraform-runner api call
       def update_stack(stack_id, template_path, input_vars: {}, input_vars_type_constraints: [], credentials: [], env_vars: {})
-        if stack_id.present? && template_path.present?
-          _log.debug("Run_aysnc/update_stack('#{stack_id}') for template: #{template_path}")
-
-          response = run_terraform_runner_stack_api(
-            Request.new(ActionType::APPLY)
-              .stack_id(stack_id)
-              .template_path(template_path)
-              .credentials(credentials)
-              .input_vars(input_vars, input_vars_type_constraints)
-              .tenant_id(stack_tenant_id)
-              .env_vars(env_vars)
-          )
-
-          Terraform::Runner::ResponseAsync.new(response.stack_id)
-        else
-          _log.error("'stack_id' && 'template_path' are required for #{ResourceAction::RECONFIGURE} action")
-          raise "'stack_id' && 'template_path' are required for #{ResourceAction::RECONFIGURE} action"
-        end
+        _log.debug("Run_aysnc/update_stack('#{stack_id}') for template: #{template_path}")
+        response = run_terraform_runner_stack_api(
+          Request.new(ActionType::APPLY)
+            .stack_id(stack_id)
+            .template_path(template_path)
+            .credentials(credentials)
+            .input_vars(input_vars, input_vars_type_constraints)
+            .tenant_id(stack_tenant_id)
+            .env_vars(env_vars)
+        )
+        Terraform::Runner::ResponseAsync.new(response.stack_id)
       end
 
       # Retire or Delete(terraform destroy) the terraform-runner created stack resources.
@@ -92,24 +81,17 @@ module Terraform
       #
       # @return [Terraform::Runner::ResponseAsync] Response object of terraform-runner api call
       def delete_stack(stack_id, template_path, input_vars: {}, input_vars_type_constraints: [], credentials: [], env_vars: {})
-        if stack_id.present? && template_path.present?
-          _log.debug("Run_aysnc/delete_stack('#{stack_id}') for template: #{template_path}")
-
-          response = run_terraform_runner_stack_api(
-            Request.new(ActionType::DELETE)
-              .stack_id(stack_id)
-              .template_path(template_path)
-              .credentials(credentials)
-              .input_vars(input_vars, input_vars_type_constraints)
-              .tenant_id(stack_tenant_id)
-              .env_vars(env_vars)
-          )
-
-          Terraform::Runner::ResponseAsync.new(response.stack_id)
-        else
-          _log.error("'stack_id' && 'template_path' are required for #{ResourceAction::RETIREMENT} action")
-          raise "'stack_id' && 'template_path' are required for #{ResourceAction::RETIREMENT} action"
-        end
+        _log.debug("Run_aysnc/delete_stack('#{stack_id}') for template: #{template_path}")
+        response = run_terraform_runner_stack_api(
+          Request.new(ActionType::DELETE)
+            .stack_id(stack_id)
+            .template_path(template_path)
+            .credentials(credentials)
+            .input_vars(input_vars, input_vars_type_constraints)
+            .tenant_id(stack_tenant_id)
+            .env_vars(env_vars)
+        )
+        Terraform::Runner::ResponseAsync.new(response.stack_id)
       end
 
       # Stop/Cancel running terraform-runner job, by stack_id
