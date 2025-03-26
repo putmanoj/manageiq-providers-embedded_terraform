@@ -33,8 +33,8 @@ RSpec.describe(Terraform::Runner) do
     end
   end
 
-  context '.create_stack for hello-world' do
-    describe '.create_stack with input_vars' do
+  context 'Create Stack for hello-world terraform template' do
+    describe '.run create stack with input_vars' do
       create_stub = nil
       retrieve_stub = nil
 
@@ -71,7 +71,14 @@ RSpec.describe(Terraform::Runner) do
       end
 
       it "start running hello-world terraform template" do
-        async_response = Terraform::Runner.create_stack(File.join(__dir__, "runner/data/hello-world"), :input_vars => input_vars, :input_vars_type_constraints => input_vars_type_constraints)
+        async_response = Terraform::Runner.run(
+          Terraform::Runner::ActionType::CREATE,
+          File.join(__dir__, "runner/data/hello-world"),
+          {
+            :input_vars                  => input_vars,
+            :input_vars_type_constraints => input_vars_type_constraints
+          }
+        )
         expect(create_stub).to(have_been_requested.times(1))
 
         response = async_response.response
@@ -86,7 +93,14 @@ RSpec.describe(Terraform::Runner) do
       end
 
       it "handles trailing '/' in template path" do
-        async_response = Terraform::Runner.create_stack(File.join(__dir__, "runner/data/hello-world/"), :input_vars => input_vars, :input_vars_type_constraints => input_vars_type_constraints)
+        async_response = Terraform::Runner.run(
+          Terraform::Runner::ActionType::CREATE,
+          File.join(__dir__, "runner/data/hello-world/"),
+          {
+            :input_vars                  => input_vars,
+            :input_vars_type_constraints => input_vars_type_constraints
+          }
+        )
         expect(create_stub).to(have_been_requested.times(1))
 
         response = async_response.response
@@ -130,7 +144,7 @@ RSpec.describe(Terraform::Runner) do
       end
     end
 
-    describe 'Stop running .create_stack job' do
+    describe 'Stop running a create-stack job' do
       create_stub = nil
       retrieve_stub = nil
       cancel_stub = nil
@@ -168,8 +182,14 @@ RSpec.describe(Terraform::Runner) do
 
       let(:input_vars) { {} }
 
-      it "run .create_stack, then stop the job, before it completes" do
-        async_response = Terraform::Runner.create_stack(File.join(__dir__, "runner/data/hello-world"), :input_vars => input_vars)
+      it ".run create stack job, then stop the job, before it completes" do
+        async_response = Terraform::Runner.run(
+          Terraform::Runner::ActionType::CREATE,
+          File.join(__dir__, "runner/data/hello-world"),
+          {
+            :input_vars => input_vars
+          }
+        )
         expect(create_stub).to(have_been_requested.times(1))
         expect(retrieve_stub).to(have_been_requested.times(0))
 
@@ -204,7 +224,7 @@ RSpec.describe(Terraform::Runner) do
       end
     end
 
-    describe '.update_stack to run Reconfiguration action' do
+    describe 'Update stack for Reconfiguration of created stack' do
       update_stub = nil
       retrieve_stub = nil
 
@@ -242,12 +262,15 @@ RSpec.describe(Terraform::Runner) do
         }
       end
 
-      it ".update_stack to run retirement with hello-world terraform template stack" do
-        async_response = Terraform::Runner.update_stack(
-          @hello_world_retrieve_update_response['stack_id'],
+      it ".run update stack for reconfiguration of stack created with hello-world terraform template" do
+        async_response = Terraform::Runner.run(
+          Terraform::Runner::ActionType::UPDATE,
           File.join(__dir__, "runner/data/hello-world"),
-          :input_vars                  => input_vars,
-          :input_vars_type_constraints => input_vars_type_constraints
+          {
+            :input_vars                  => input_vars,
+            :input_vars_type_constraints => input_vars_type_constraints,
+            :stack_id                    => @hello_world_retrieve_update_response['stack_id']
+          }
         )
         expect(update_stub).to(have_been_requested.times(1))
 
@@ -262,7 +285,7 @@ RSpec.describe(Terraform::Runner) do
       end
     end
 
-    describe '.delete_stack to run Retirement action' do
+    describe 'Delete stack for Retirement of created stack' do
       delete_stub = nil
       delete_retrieve_stub = nil
 
@@ -300,12 +323,15 @@ RSpec.describe(Terraform::Runner) do
         }
       end
 
-      it ".delete_stack to run retirement with hello-world terraform template stack" do
-        async_response = Terraform::Runner.delete_stack(
-          @hello_world_retrieve_delete_response['stack_id'],
+      it ".run delete stack for retirement of stack created with hello-world terraform template" do
+        async_response = Terraform::Runner.run(
+          Terraform::Runner::ActionType::DELETE,
           File.join(__dir__, "runner/data/hello-world"),
-          :input_vars                  => input_vars,
-          :input_vars_type_constraints => input_vars_type_constraints
+          {
+            :input_vars                  => input_vars,
+            :input_vars_type_constraints => input_vars_type_constraints,
+            :stack_id                    => @hello_world_retrieve_delete_response['stack_id'],
+          }
         )
         expect(delete_stub).to(have_been_requested.times(1))
 
@@ -322,8 +348,8 @@ RSpec.describe(Terraform::Runner) do
     end
   end
 
-  context '.create_stack with cloud credentials' do
-    describe '.create_stack with amazon credential' do
+  context 'Create stack with cloud credentials' do
+    describe 'Create stack with amazon credential' do
       let(:amazon_cred) do
         params = {
           :userid         => "manageiq-aws",
@@ -380,17 +406,20 @@ RSpec.describe(Terraform::Runner) do
 
       let(:input_vars) { {} }
 
-      it ".create_stack for terraform template with amazon credential" do
-        Terraform::Runner.create_stack(
+      it ".run create stack for terraform template with amazon credential" do
+        Terraform::Runner.run(
+          Terraform::Runner::ActionType::CREATE,
           File.join(__dir__, "runner/data/hello-world"),
-          :input_vars  => input_vars,
-          :credentials => [amazon_cred]
+          {
+            :input_vars  => input_vars,
+            :credentials => [amazon_cred]
+          }
         )
         expect(create_stub).to(have_been_requested.times(1))
       end
     end
 
-    describe '.create_stack with vSphere & ibmcloud credential' do
+    describe 'Create stack with vSphere & ibmcloud credential' do
       let(:vsphere_cred) do
         params = {
           :userid   => "userid",
@@ -462,11 +491,14 @@ RSpec.describe(Terraform::Runner) do
 
       let(:input_vars) { {} }
 
-      it ".create_stack with terraform template with vSphere & ibmcloud credentials" do
-        Terraform::Runner.create_stack(
+      it ".run create stack with terraform template with vSphere & ibmcloud credentials" do
+        Terraform::Runner.run(
+          Terraform::Runner::ActionType::CREATE,
           File.join(__dir__, "runner/data/hello-world"),
-          :input_vars  => input_vars,
-          :credentials => [vsphere_cred, ibmcloud_cred]
+          {
+            :input_vars  => input_vars,
+            :credentials => [vsphere_cred, ibmcloud_cred]
+          }
         )
         expect(create_stub).to(have_been_requested.times(1))
       end

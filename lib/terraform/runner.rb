@@ -15,83 +15,53 @@ module Terraform
         @available = false
       end
 
-      # Provision or Create (terraform apply) a stack in terraform-runner for a terraform template.
+      # Run TerraformRunner Stack actions with a Terraform template.
       #
+      # @param action_type   [String] (required) a action to run, use one of Terraform::Runner::ActionType::<constant>
       # @param template_path [String] (required) path to the terraform template directory.
-      # @param input_vars    [Hash]   (optional) key/value pairs as input variables for the terraform-runner run job.
-      # @param input_vars_type_constraints
-      #                      [Hash]   (optional) key/value(type constraints object, from Terraform Runner) pair.
-      # @param tags          [Hash]   (optional) key/value pairs tags for terraform-runner Provisioned resources.
-      # @param credentials   [Array]  (optional) List of Authentication objects for the terraform run job.
-      # @param env_vars      [Hash]   (optional) key/value pairs used as environment variables, for terraform-runner run job.
-      # @param nane          [String] (optional) name for the stack in terraform-runner.
+      # @param options       [Hash]   (optional) key/values pairs
       #
       # @return [Terraform::Runner::ResponseAsync] Response object of terraform-runner api call
-      def create_stack(template_path, input_vars: {}, input_vars_type_constraints: [], tags: nil, credentials: [], env_vars: {},
-                       name: "stack-#{rand(36**8).to_s(36)}")
-        _log.debug("Run_aysnc/create_stack for template: #{template_path}")
-        response = run_terraform_runner_stack_api(
-          Request.new(ActionType::CREATE)
-            .template_path(template_path)
-            .name(name)
-            .credentials(credentials)
-            .input_vars(input_vars, input_vars_type_constraints)
-            .tenant_id(stack_tenant_id)
-            .tags(tags)
-            .env_vars(env_vars)
-        )
+      #
+      # Note:
+      # * supported in 'action_type' :
+      #   1. ActionType::CREATE   (Provision)   create new stack - `terraform apply`.
+      #   2. ActionType::UPDATE   (Reconfigure) update a existing stack - `terraform apply`.
+      #   3. ActionType::DELETE   (Retirement)  destroy a existing stack/resources - `terraform destroy`.
+      #   4. ActionType::RETRIEVE (Fetch)       fetch a existing stack object json from terraform-runner.
+      #   5. ActionType::CANCEL   (Stop)        stop running stack job in terraform-runner.
+      # * keys allowed in ':options'
+      #   - :input_vars                  [Hash]   (optional) key/value pairs, as input variables for the terraform-runner run job.
+      #   - :input_vars_type_constraints [Hash]   (optional) key/value(type constraints object, from Terraform Runner) pairs.
+      #   - :tags                        [Hash]   (optional) key/value pairs tags for terraform-runner Provisioned resources.
+      #   - :credentials                 [Array]  (optional) list of authentication objects for the terraform run job.
+      #   - :env_vars                    [Hash]   (optional) key/value pairs, used as environment variables, for terraform-runner run job.
+      #   - :name                        [String] (optional) name for new created stack in terraform-runner.
+      #   - :stack_id                    [String] [required] if Reconfigure/Retire/Retrieve/Cancel actions.
+      #
+      def run(action_type, template_path, options = {}, _stack_id = nil)
+        _log.debug("Run #{action_type} for template: #{template_path}")
 
-        Terraform::Runner::ResponseAsync.new(response.stack_id)
-      end
+        case action_type
+        when ActionType::CREATE, ActionType::UPDATE, ActionType::DELETE, ActionType::RETRIEVE, ActionType::CANCEL
+          response = run_terraform_runner_stack_api(
+            Request.new(action_type)
+              .template_path(template_path)
+              .credentials(options[:credentials])
+              .input_vars(options[:input_vars], options[:input_vars_type_constraints])
+              .tenant_id(stack_tenant_id)
+              .tags(options[:tags])
+              .env_vars(options[:env_vars])
+              .name(options[:name])
+              .stack_id(options[:stack_id])
+          )
 
-      # Reconfigure or Update(terraform apply) a existing stack in terraform-runner.
-      #
-      # @param stack_id      [String] (optional) required, if running ResourceAction::RECONFIGURE action, used by Terraform-Runner update job.
-      # @param template_path [String] (required) path to the terraform template directory.
-      # @param input_vars    [Hash]   (optional) key/value pairs as input variables for the terraform-runner run job.
-      # @param input_vars_type_constraints
-      #                      [Hash]   (optional) key/value(type constraints object, from Terraform Runner) pair.
-      # @param credentials   [Array]  (optional) List of Authentication objects for the terraform run job.
-      # @param env_vars      [Hash]   (optional) key/value pairs used as environment variables, for terraform-runner run job.
-      #
-      # @return [Terraform::Runner::ResponseAsync] Response object of terraform-runner api call
-      def update_stack(stack_id, template_path, input_vars: {}, input_vars_type_constraints: [], credentials: [], env_vars: {})
-        _log.debug("Run_aysnc/update_stack('#{stack_id}') for template: #{template_path}")
-        response = run_terraform_runner_stack_api(
-          Request.new(ActionType::APPLY)
-            .stack_id(stack_id)
-            .template_path(template_path)
-            .credentials(credentials)
-            .input_vars(input_vars, input_vars_type_constraints)
-            .tenant_id(stack_tenant_id)
-            .env_vars(env_vars)
-        )
-        Terraform::Runner::ResponseAsync.new(response.stack_id)
-      end
-
-      # Retire or Delete(terraform destroy) the terraform-runner created stack resources.
-      #
-      # @param stack_id      [String] (optional) required, if running ResourceAction::RETIREMENT action, used by Terraform-Runner stack_delete job.
-      # @param template_path [String] (required) path to the terraform template directory.
-      # @param input_vars    [Hash]   (optional) key/value pairs as input variables for the terraform-runner run job.
-      # @param input_vars_type_constraints
-      #                      [Hash]   (optional) key/value(type constraints object, from Terraform Runner) pair.
-      # @param credentials   [Array]  (optional) List of Authentication objects for the terraform run job.
-      # @param env_vars      [Hash]   (optional) key/value pairs used as environment variables, for terraform-runner run job.
-      #
-      # @return [Terraform::Runner::ResponseAsync] Response object of terraform-runner api call
-      def delete_stack(stack_id, template_path, input_vars: {}, input_vars_type_constraints: [], credentials: [], env_vars: {})
-        _log.debug("Run_aysnc/delete_stack('#{stack_id}') for template: #{template_path}")
-        response = run_terraform_runner_stack_api(
-          Request.new(ActionType::DELETE)
-            .stack_id(stack_id)
-            .template_path(template_path)
-            .credentials(credentials)
-            .input_vars(input_vars, input_vars_type_constraints)
-            .tenant_id(stack_tenant_id)
-            .env_vars(env_vars)
-        )
-        Terraform::Runner::ResponseAsync.new(response.stack_id)
+          Terraform::Runner::ResponseAsync.new(response.stack_id)
+        when ActionType::TEMPLATE_VARIABLES
+          raise "Not supported action type in this method, instead use method parse_terraform_variables"
+        else
+          raise "Not supported action type '#{action_type}'"
+        end
       end
 
       # Stop/Cancel running terraform-runner job, by stack_id
@@ -114,7 +84,7 @@ module Terraform
       # @param stack_id [String] stack_id for the terraforn-runner stack job
       #
       # @return [Terraform::Runner::Response] Response object with result of terraform run
-      def fetch_result_by_stack_id(stack_id)
+      def retrieve_stack_by_id(stack_id)
         run_terraform_runner_stack_api(
           Request.new(ActionType::RETRIEVE)
             .stack_id(stack_id)
@@ -122,9 +92,10 @@ module Terraform
       end
 
       # To simplify clients who want to fetch stack object from terraform-runner
-      alias stack fetch_result_by_stack_id
+      alias stack retrieve_stack_by_id
 
       # Parse Terraform Template input/output variables
+      #
       # @param template_path [String] Path to the template we will want to parse for input/output variables
       # @return Response(body) object of terraform-runner api/template/variables,
       #         - the response object had template_input_params, template_output_params and terraform_version

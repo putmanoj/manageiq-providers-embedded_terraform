@@ -4,6 +4,7 @@ module Terraform
     class ActionType
       CREATE = 'api/stack/create'.freeze
       APPLY = 'api/stack/apply'.freeze
+      UPDATE = APPLY
       DELETE = 'api/stack/delete'.freeze
       CANCEL = 'api/stack/cancel'.freeze
       RETRIEVE = 'api/stack/retrieve'.freeze
@@ -11,7 +12,7 @@ module Terraform
 
       def self.action_endpoint(action_type)
         case action_type
-        when ActionType::CREATE, ActionType::APPLY, ActionType::DELETE,
+        when ActionType::CREATE, ActionType::UPDATE, ActionType::DELETE,
           ActionType::CANCEL, ActionType::RETRIEVE, ActionType::TEMPLATE_VARIABLES
           action_type.to_s
         else
