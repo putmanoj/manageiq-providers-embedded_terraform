@@ -26,24 +26,33 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
     input_vars    = options.dig(:input_vars, :extra_vars) || {}
     action        = options[:action]
 
+    runner_options = {
+      :input_vars                  => decrypt_vars(input_vars),
+      :input_vars_type_constraints => input_vars_type_constraints,
+      :credentials                 => credentials,
+      :env_vars                    => options[:env_vars]
+    }
+
     case action
-    when ResourceAction::RETIREMENT
-      Terraform::Runner.delete_stack(
-        options[:terraform_stack_id],
+    when ResourceAction::RECONFIGURE
+      Terraform::Runner.run(
+        Terraform::Runner::ActionType::UPDATE,
         template_path,
-        :input_vars                  => decrypt_vars(input_vars),
-        :input_vars_type_constraints => input_vars_type_constraints,
-        :credentials                 => credentials,
-        :env_vars                    => options[:env_vars]
+        runner_options.merge(:stack_id => options[:terraform_stack_id])
+      )
+    when ResourceAction::RETIREMENT
+      Terraform::Runner.run(
+        Terraform::Runner::ActionType::DELETE,
+        template_path,
+        runner_options.merge(:stack_id => options[:terraform_stack_id])
       )
     else
-      response = Terraform::Runner.create_stack(
+      response = Terraform::Runner.run(
+        Terraform::Runner::ActionType::CREATE,
         template_path,
-        :input_vars                  => decrypt_vars(input_vars),
-        :input_vars_type_constraints => input_vars_type_constraints,
-        :credentials                 => credentials,
-        :env_vars                    => options[:env_vars]
+        runner_options
       )
+      # save stack_id from the created stack
       options[:terraform_stack_id] = response.stack_id
       save!
     end

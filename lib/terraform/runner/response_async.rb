@@ -31,7 +31,7 @@ module Terraform
 
       # Re-Fetch async job's response
       def refresh_response
-        @response = Terraform::Runner.fetch_result_by_stack_id(@stack_id)
+        @response = Terraform::Runner.retrieve_stack_by_id(@stack_id)
 
         @response
       end

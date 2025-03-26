@@ -12,9 +12,9 @@ module Terraform
                .credentials(values[:credentials])
                .input_vars(values[:input_vars], values[:input_vars_type_constraints])
                .tenant_id(values[:tenant_id])
-               .stack_id(values[:stack_id])
                .tags(values[:tags])
                .env_vars(values[:env_vars])
+               .stack_id(values[:stack_id])
       end
 
       def initialize(action_type)
@@ -24,10 +24,13 @@ module Terraform
 
       def build_json_post_arguments
         case @action_type
-        when ActionType::CREATE, ActionType::APPLY, ActionType::DELETE
-          if !@request_arguments.key?(:cloud_providers)
-            @request_arguments[:cloud_providers] = []
-          end
+        when ActionType::CREATE
+          @request_arguments[:name] = random_stack_name if !@request_arguments.key?(:name)
+          @request_arguments[:cloud_providers] = [] if !@request_arguments.key?(:cloud_providers)
+          @request_arguments[:parameters] = [] if !@request_arguments.key?(:parameters)
+        when ActionType::UPDATE, ActionType::DELETE
+          @request_arguments[:cloud_providers] = [] if !@request_arguments.key?(:cloud_providers)
+          @request_arguments[:parameters] = [] if !@request_arguments.key?(:parameters)
         end
         validate
         json_post_arguments
@@ -40,7 +43,7 @@ module Terraform
           if !@request_arguments.key?(:templateZipFile)
             raise "'template_path' is required for #{@action_type}"
           end
-        when ActionType::APPLY, ActionType::DELETE
+        when ActionType::UPDATE, ActionType::DELETE
           # 'templateZipFile' is added, if 'template_path' is set
           if !@request_arguments.key?(:stack_id) || !@request_arguments.key?(:templateZipFile)
             raise "'stack_id' and 'template_path' are required for #{@action_type}"
@@ -75,7 +78,7 @@ module Terraform
       end
 
       def credentials(credentials)
-        @request_arguments[:cloud_providers] = provider_connection_parameters(credentials)
+        @request_arguments[:cloud_providers] = provider_connection_parameters(credentials) if credentials.present?
         self
       end
 
@@ -113,6 +116,10 @@ module Terraform
 
       # encode zip of a template directory
       def encoded_zip_from_directory(template_path)
+        if !File.directory?(template_path)
+          raise "Terraform template path '#{template_path}' does not exits"
+        end
+
         dir_path = template_path # directory to be zipped
         dir_path = dir_path[0...-1] if dir_path.end_with?('/')
 
@@ -126,6 +133,10 @@ module Terraform
           end
           Base64.encode64(File.binread(zip_file_path))
         end
+      end
+
+      def random_stack_name
+        "stack-#{rand(36**8).to_s(36)}"
       end
     end
   end
