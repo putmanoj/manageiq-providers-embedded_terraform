@@ -25,12 +25,12 @@ module Terraform
       def build_json_post_arguments
         case @action_type
         when ActionType::CREATE
-          @request_arguments[:name] = random_stack_name if !@request_arguments.key?(:name)
-          @request_arguments[:cloud_providers] = [] if !@request_arguments.key?(:cloud_providers)
-          @request_arguments[:parameters] = [] if !@request_arguments.key?(:parameters)
+          @request_arguments[:name] ||= random_stack_name
+          @request_arguments[:cloud_providers] ||= []
+          @request_arguments[:parameters] ||= []
         when ActionType::UPDATE, ActionType::DELETE
-          @request_arguments[:cloud_providers] = [] if !@request_arguments.key?(:cloud_providers)
-          @request_arguments[:parameters] = [] if !@request_arguments.key?(:parameters)
+          @request_arguments[:cloud_providers] ||= []
+          @request_arguments[:parameters] ||= []
         end
         validate
         json_post_arguments
@@ -40,18 +40,12 @@ module Terraform
         case @action_type
         when ActionType::CREATE, ActionType::TEMPLATE_VARIABLES
           # 'templateZipFile' is added, if 'template_path' is set
-          if !@request_arguments.key?(:templateZipFile)
-            raise "'template_path' is required for #{@action_type}"
-          end
+          raise "'template_path' is required for #{@action_type}" unless @request_arguments.key?(:templateZipFile)
         when ActionType::UPDATE, ActionType::DELETE
           # 'templateZipFile' is added, if 'template_path' is set
-          if !@request_arguments.key?(:stack_id) || !@request_arguments.key?(:templateZipFile)
-            raise "'stack_id' and 'template_path' are required for #{@action_type}"
-          end
+          raise "'stack_id' and 'template_path' are required for #{@action_type}" unless @request_arguments.key?(:templateZipFile) && @request_arguments.key?(:stack_id)
         when ActionType::CANCEL, ActionType::RETRIEVE
-          if !@request_arguments.key?(:stack_id)
-            raise "'stack_id' is required for #{@action_type}"
-          end
+          raise "'stack_id' is required for #{@action_type}" unless @request_arguments.key?(:stack_id)
         else
           raise "Invalid action_type: #{@action_type}"
         end

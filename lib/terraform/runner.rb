@@ -39,29 +39,25 @@ module Terraform
       #   - :name                        [String] (optional) name for new created stack in terraform-runner.
       #   - :stack_id                    [String] [required] if Reconfigure/Retire/Retrieve/Cancel actions.
       #
-      def run(action_type, template_path, options = {}, _stack_id = nil)
+      def run(action_type, template_path, options = {})
+        raise "Not supported action type in this method, instead use method parse_terraform_variables" if action_type == ActionType::TEMPLATE_VARIABLES
+        raise "Not supported action type '#{action_type}'" unless ActionType.actions.include?(action_type)
+
         _log.debug("Run #{action_type} for template: #{template_path}")
 
-        case action_type
-        when ActionType::CREATE, ActionType::UPDATE, ActionType::DELETE, ActionType::RETRIEVE, ActionType::CANCEL
-          response = run_terraform_runner_stack_api(
-            Request.new(action_type)
-              .template_path(template_path)
-              .credentials(options[:credentials])
-              .input_vars(options[:input_vars], options[:input_vars_type_constraints])
-              .tenant_id(stack_tenant_id)
-              .tags(options[:tags])
-              .env_vars(options[:env_vars])
-              .name(options[:name])
-              .stack_id(options[:stack_id])
-          )
+        response = run_terraform_runner_stack_api(
+          Request.new(action_type)
+            .template_path(template_path)
+            .credentials(options[:credentials])
+            .input_vars(options[:input_vars], options[:input_vars_type_constraints])
+            .tenant_id(stack_tenant_id)
+            .tags(options[:tags])
+            .env_vars(options[:env_vars])
+            .name(options[:name])
+            .stack_id(options[:stack_id])
+        )
 
-          Terraform::Runner::ResponseAsync.new(response.stack_id)
-        when ActionType::TEMPLATE_VARIABLES
-          raise "Not supported action type in this method, instead use method parse_terraform_variables"
-        else
-          raise "Not supported action type '#{action_type}'"
-        end
+        Terraform::Runner::ResponseAsync.new(response.stack_id)
       end
 
       # Stop/Cancel running terraform-runner job, by stack_id
@@ -77,7 +73,7 @@ module Terraform
       end
 
       # To simplify clients who want to stop a running stack job, we alias it to call stop_async
-      alias stop_stack stop_async
+      alias stop stop_async
 
       # Fetch/Retrieve stack object(with result/status), by stack_id from terraform-runner
       #
@@ -112,9 +108,6 @@ module Terraform
         JSON.parse(http_response.body)
       end
 
-      # =================================================
-      # TerraformRunner Stack-API interaction methods
-      # =================================================
       private
 
       def server_url
