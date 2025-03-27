@@ -220,7 +220,7 @@ RSpec.describe(Terraform::Runner) do
       end
 
       it "is aliased as stop_stack" do
-        expect(Terraform::Runner.method(:stop_stack)).to(eq(Terraform::Runner.method(:stop_async)))
+        expect(Terraform::Runner.method(:stop)).to(eq(Terraform::Runner.method(:stop_async)))
       end
     end
 
