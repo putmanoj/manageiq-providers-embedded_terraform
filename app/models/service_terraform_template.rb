@@ -4,6 +4,7 @@ class ServiceTerraformTemplate < ServiceGeneric
   CONFIG_OPTIONS_WHITELIST = %i[
     credential_id
     execution_ttl
+    input_vars
     extra_vars
     verbosity
   ].freeze
@@ -13,13 +14,13 @@ class ServiceTerraformTemplate < ServiceGeneric
   end
 
   # A chance for taking options from automate script to override options from a service dialog
-  def preprocess(action, add_options = {})
-    if add_options.present?
+  def preprocess(action, update_options = {})
+    if update_options.present?
       $embedded_terraform_log.info("Override with new options:")
-      $embedded_terraform_log.log_hashes(add_options)
+      $embedded_terraform_log.log_hashes(update_options)
     end
 
-    save_job_options(action, add_options)
+    save_job_options(action, update_options)
   end
 
   def execute(action)
@@ -57,7 +58,7 @@ class ServiceTerraformTemplate < ServiceGeneric
   def launch_terraform_template(action)
     terraform_template = terraform_template(action)
 
-    # runs provision or retirement job, based on job_options
+    # runs provision or retirement or reconfigure job, based on job_options
     stack = ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack.create_stack(terraform_template, get_job_options(action))
     add_resource!(stack, :name => action)
   end
@@ -83,20 +84,7 @@ class ServiceTerraformTemplate < ServiceGeneric
   def get_job_options(action)
     job_options = options[job_option_key(action)].deep_dup
 
-    if action == ResourceAction::RETIREMENT
-      prov_job = job(ResourceAction::PROVISION)
-      if prov_job.present? && prov_job.options.present?
-        # Copy input-vars from Provision(terraform apply) action,
-        # the Retirement(terraform destroy) action will use same input-vars/values.
-        prov_vars = prov_job.options.dig(:input_vars, :extra_vars)
-        job_options[:extra_vars] = prov_vars.deep_merge!(job_options[:extra_vars]) if prov_vars
-
-        # add stack_id for terraform-runner
-        job_options[:terraform_stack_id] = prov_job.options[:terraform_stack_id]
-      end
-    end
-
-    # current action, required to identify Retirement action
+    # current action, required to identify Retirement or Reconfigure action
     job_options[:action] = action
 
     job_options
@@ -108,11 +96,31 @@ class ServiceTerraformTemplate < ServiceGeneric
 
   def save_job_options(action, overrides)
     job_options = config_options(action)
+    # TODO: check extra_vars
     job_options[:extra_vars].try(:transform_values!) do |val|
       val.kind_of?(String) ? val : val[:default] # TODO: support Hash only
     end
-    job_options.deep_merge!(parse_dialog_options) unless action == ResourceAction::RETIREMENT
-    job_options.deep_merge!(overrides)
+
+    case action
+    when ResourceAction::RETIREMENT
+      # The Retirement(terraform destroy) action, itself does have dialog-options,
+      # so will use input-vars/values from Provision/Reconfiguration.
+      # Copy input-vars from Provision & Reconfiguration (terraform apply),
+      prov_job_options = copy_terraform_stack_id_and_input_vars_from_job_options(ResourceAction::PROVISION)
+      reconfigure_job_options = copy_terraform_stack_id_and_input_vars_from_job_options(ResourceAction::RECONFIGURE)
+      job_options.deep_merge!(prov_job_options)
+      job_options.deep_merge!(reconfigure_job_options)
+    when ResourceAction::RECONFIGURE
+      # We need the stack_id from Provision, then we override with update_options from Reconfiguration request
+      prov_job_options = copy_terraform_stack_id_and_input_vars_from_job_options(ResourceAction::PROVISION)
+      job_options.deep_merge!(prov_job_options)
+      job_options.deep_merge!(parse_dialog_options(overrides))
+    else
+      # For Provision
+      job_options.deep_merge!(parse_dialog_options(options))
+    end
+
+    #  job_options.deep_merge!(overrides)
     translate_credentials!(job_options)
 
     options[job_option_key(action)] = job_options
@@ -123,15 +131,15 @@ class ServiceTerraformTemplate < ServiceGeneric
     "#{action.downcase}_job_options".to_sym
   end
 
-  def parse_dialog_options
-    dialog_options = options[:dialog] || {}
+  def parse_dialog_options(action_options)
+    dialog_options = action_options[:dialog] || {}
 
     params = dialog_options.each_with_object({}) do |(attr, val), obj|
       var_key = attr.sub(/^(password::)?dialog_/, '')
       obj[var_key] = val
     end
 
-    params.blank? ? {} : {:extra_vars => params}
+    params.blank? ? {} : {:input_vars => params}
   end
 
   def translate_credentials!(options)
@@ -139,5 +147,18 @@ class ServiceTerraformTemplate < ServiceGeneric
 
     credential_id = options.delete(:credential_id)
     options[:credentials] << Authentication.find(credential_id).native_ref if credential_id.present?
+  end
+
+  def copy_terraform_stack_id_and_input_vars_from_job_options(action)
+    action_job = job(action)
+    if action_job.present? && action_job.options.present?
+      job_options = {}
+      job_options[:terraform_stack_id] = action_job.options[:terraform_stack_id] if action_job.options.key?(:terraform_stack_id)
+      job_options[:extra_vars] = action_job.options.dig(:input_vars, :extra_vars).deep_dup
+      job_options[:input_vars] = action_job.options.dig(:input_vars, :input_vars).deep_dup
+      job_options
+    else
+      {}
+    end
   end
 end

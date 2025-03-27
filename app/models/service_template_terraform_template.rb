@@ -4,7 +4,7 @@ class ServiceTemplateTerraformTemplate < ServiceTemplate
   end
 
   def self.default_reconfiguration_entry_point
-    nil
+    '/Service/Reconfiguration/StateMachines/Reconfigure/default'
   end
 
   def self.default_retirement_entry_point
@@ -40,13 +40,16 @@ class ServiceTemplateTerraformTemplate < ServiceTemplate
   end
 
   private_class_method def self.validate_config_info(info)
-    info[:provision][:fqname]   ||= default_provisioning_entry_point(SERVICE_TYPE_ATOMIC) if info.key?(:provision)
+    info[:provision][:fqname] ||= default_provisioning_entry_point(SERVICE_TYPE_ATOMIC) if info.key?(:provision)
 
-    info[:reconfigure][:fqname] ||= default_reconfiguration_entry_point if info.key?(:reconfigure)
+    # By default, for Reconfigure(terraform apply) will have same config as Provision,
+    # though the input parameters values, can be changed by the user
+    info[:reconfigure] ||= retirement_or_reconfigure_default_info(info[:provision])
+    info[:reconfigure][:fqname] ||= default_reconfiguration_entry_point
 
-    # By default, for retirement(terraform destroy) will have same config as provision config,
+    # By default, for Retirement(terraform destroy) will have same config as Provision config,
     # because retirement(terraform destroy) action is run in-reverse order with same terraform template.
-    info[:retirement] ||= retirement_default_info(info[:provision])
+    info[:retirement] ||= retirement_or_reconfigure_default_info(info[:provision])
     info[:retirement][:fqname] ||= default_retirement_entry_point
 
     raise _("Must provide a configuration_script_payload_id") if info[:provision][:configuration_script_payload_id].nil?
@@ -54,7 +57,7 @@ class ServiceTemplateTerraformTemplate < ServiceTemplate
     info
   end
 
-  private_class_method def self.retirement_default_info(prov_info)
+  private_class_method def self.retirement_or_reconfigure_default_info(prov_info)
     info = prov_info.deep_dup
     info.delete(:fqname)
     info

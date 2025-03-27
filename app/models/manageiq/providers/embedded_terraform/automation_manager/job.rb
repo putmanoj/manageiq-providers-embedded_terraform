@@ -23,7 +23,6 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
   def execute
     template_path = File.join(options[:git_checkout_tempdir], template_relative_path)
     credentials   = Authentication.where(:id => options[:credentials])
-    input_vars    = options.dig(:input_vars, :extra_vars) || {}
     action        = options[:action]
 
     runner_options = {
@@ -176,6 +175,13 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
   rescue => error
     $embedded_terraform_log.error("Failure in parsing payload for template/#{template.id}, caused by #{error.message}")
     {}
+  end
+
+  def input_vars
+    extra_vars = options.dig(:input_vars, :extra_vars) || {}
+    input_vars = options.dig(:input_vars, :input_vars) || {}
+    # merge & over extra_vars with input_vars
+    extra_vars.deep_merge!(input_vars)
   end
 
   def terraform_runner_action_type(resource_action)
