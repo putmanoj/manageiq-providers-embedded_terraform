@@ -109,6 +109,6 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
 
     return if terraform_stack_id.blank?
 
-    Terraform::Runner.fetch_result_by_stack_id(terraform_stack_id)
+    Terraform::Runner.stack(terraform_stack_id)
   end
 end
