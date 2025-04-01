@@ -114,7 +114,7 @@ class ServiceTerraformTemplate < ServiceGeneric
       # We need the stack_id from Provision, then we override with update_options from Reconfiguration request
       prov_job_options = copy_terraform_stack_id_and_input_vars_from_job_options(ResourceAction::PROVISION)
       job_options.deep_merge!(prov_job_options)
-      job_options.deep_merge!(parse_dialog_options(overrides))
+      job_options.deep_merge!(parse_dialog_options_only(overrides))
     else
       # For Provision
       job_options.deep_merge!(parse_dialog_options(options))
@@ -129,6 +129,22 @@ class ServiceTerraformTemplate < ServiceGeneric
 
   def job_option_key(action)
     "#{action.downcase}_job_options".to_sym
+  end
+
+  # We only want keys starting with 'dialog_', as these are user inputs, don't want other key/value pairs.
+  # Particularly in case of Reconfigure action, we want to remove keys like,
+  # - request => "service_reconfigure"
+  # - Service::service => ##
+  def parse_dialog_options_only(action_options)
+    dialog_options = action_options[:dialog] || {}
+    params = {}
+    dialog_options.each do |attr, val|
+      if attr.start_with?("dialog_")
+        var_key = attr.sub(/^(password::)?dialog_/, '')
+        params[var_key] = val
+      end
+    end
+    params.blank? ? {} : {:input_vars => params}
   end
 
   def parse_dialog_options(action_options)
