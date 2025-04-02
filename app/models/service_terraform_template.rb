@@ -43,6 +43,20 @@ class ServiceTerraformTemplate < ServiceGeneric
     raise task.message unless task.status_ok?
   end
 
+  def postprocess(action)
+    case action
+    when ResourceAction::RECONFIGURE
+      # As we have reached here, so the action was successful.
+      # Now we update the Service with dialog options from Reconfiguration
+      $embedded_terraform_log.info("successfully reconfiguired, save reconfigure job options, to service dialog options")
+      job_options = get_job_options(action)
+      params = job_options[:input_vars] || {}
+      save_params_to_dialog_options(params)
+    else
+      _log.debug("postprocess for #{action}")
+    end
+  end
+
   def check_completed(action)
     status = stack(action).raw_status
     done   = status.completed?
@@ -176,5 +190,15 @@ class ServiceTerraformTemplate < ServiceGeneric
     else
       {}
     end
+  end
+
+  def save_params_to_dialog_options(params)
+    dialog_options = options[:dialog] || {}
+    params.each do |attr, val|
+      dialog_key = "dialog_#{attr}"
+      dialog_options[dialog_key] = val
+    end
+    options[:dialog] = dialog_options
+    save!
   end
 end
