@@ -57,18 +57,20 @@ module Terraform
             .stack_id(options[:stack_id])
         )
 
-        Terraform::Runner::ResponseAsync.new(response.stack_id)
+        Terraform::Runner::ResponseAsync.new(response.stack_id, response.stack_job_id)
       end
 
       # Stop/Cancel running terraform-runner job, by stack_id
       #
-      # @param stack_id [String] stack_id from the terraforn-runner job
+      # @param stack_id     [String] (required) stack_id from the terraforn-runner job
+      # @param stack_job_id [String] (optional) if not provided fetches latest job, else particular job of terraforn-runner stack object
       #
       # @return [Terraform::Runner::Response] Response object with result of terraform run
-      def stop_async(stack_id)
+      def stop_async(stack_id, stack_job_id = nil)
         run_terraform_runner_stack_api(
           Request.new(ActionType::CANCEL)
             .stack_id(stack_id)
+            .stack_job_id(stack_job_id)
         )
       end
 
@@ -77,18 +79,20 @@ module Terraform
 
       # Fetch/Retrieve stack object(with result/status), by stack_id from terraform-runner
       #
-      # @param stack_id [String] stack_id for the terraforn-runner stack job
+      # @param stack_id     [String] (required) stack_id of terraforn-runner stack object
+      # @param stack_job_id [String] (optional) if not provided fetches latest job, else particular job of terraforn-runner stack object
       #
       # @return [Terraform::Runner::Response] Response object with result of terraform run
-      def retrieve_stack_by_id(stack_id)
+      def retrieve_stack(stack_id, stack_job_id = nil)
         run_terraform_runner_stack_api(
           Request.new(ActionType::RETRIEVE)
             .stack_id(stack_id)
+            .stack_job_id(stack_job_id)
         )
       end
 
       # To simplify clients who want to fetch stack object from terraform-runner
-      alias stack retrieve_stack_by_id
+      alias stack retrieve_stack
 
       # Parse Terraform Template input/output variables
       #

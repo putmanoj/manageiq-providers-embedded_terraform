@@ -86,6 +86,7 @@ RSpec.describe(Terraform::Runner) do
 
         expect(response.status).to(eq('IN_PROGRESS'), "terraform-runner failed with:\n#{response.status}")
         expect(response.stack_id).to(eq(@hello_world_create_response['stack_id']))
+        expect(response.stack_job_id).to(eq(@hello_world_create_response['stack_job_id']))
         expect(response.action).to(eq('CREATE'))
         expect(response.stack_name).to(eq(@hello_world_create_response['stack_name']))
         expect(response.message).to(be_nil)
@@ -108,6 +109,7 @@ RSpec.describe(Terraform::Runner) do
 
         expect(response.status).to(eq('IN_PROGRESS'), "terraform-runner failed with:\n#{response.status}")
         expect(response.stack_id).to(eq(@hello_world_create_response['stack_id']))
+        expect(response.stack_job_id).to(eq(@hello_world_create_response['stack_job_id']))
         expect(response.action).to(eq('CREATE'))
         expect(response.stack_name).to(eq(@hello_world_create_response['stack_name']))
         expect(response.message).to(be_nil)
@@ -117,30 +119,67 @@ RSpec.describe(Terraform::Runner) do
 
     describe 'ResponseAsync' do
       retrieve_stub = nil
+      retrieve_update_stub = nil
 
       before do
         ENV["TERRAFORM_RUNNER_URL"] = "https://1.2.3.4:7000"
 
         retrieve_stub = stub_request(:post, "#{terraform_runner_url}/api/stack/retrieve")
-                        .with(:body => hash_including({:stack_id => @hello_world_retrieve_create_response['stack_id']}))
+                        .with(
+                          :body => hash_including({
+                                                    :stack_id => @hello_world_retrieve_create_response['stack_id']
+                                                  })
+                        )
                         .to_return(
                           :status => 200,
                           :body   => @hello_world_retrieve_create_response.to_json
                         )
+
+        retrieve_update_stub = stub_request(:post, "https://1.2.3.4:7000/api/stack/retrieve")
+                               .with(
+                                 :body => hash_including({
+                                                           :stack_id     => @hello_world_retrieve_update_response['stack_id'],
+                                                           :stack_job_id => @hello_world_retrieve_update_response['stack_job_id']
+                                                         })
+                               )
+                               .to_return(
+                                 :status => 200,
+                                 :body   => @hello_world_retrieve_update_response.to_json
+                               )
       end
 
-      it "retrieve hello-world completed result" do
-        async_response = Terraform::Runner::ResponseAsync.new(@hello_world_create_response['stack_id'])
+      it "retrieve hello-world completed result with only stack_id" do
+        async_response = Terraform::Runner::ResponseAsync.new(
+          @hello_world_create_response['stack_id']
+        )
         response = async_response.response
 
         expect(response.status).to(eq('SUCCESS'), "terraform-runner failed with:\n#{response.status}")
         expect(response.message).to(include('greeting = "Hello World"'))
         expect(response.stack_id).to(eq(@hello_world_retrieve_create_response['stack_id']))
+        expect(response.stack_job_id).to(eq(@hello_world_retrieve_create_response['stack_job_id']))
         expect(response.action).to(eq('CREATE'))
         expect(response.stack_name).to(eq(@hello_world_retrieve_create_response['stack_name']))
         expect(response.details.keys).to(eq(%w[resources outputs]))
 
         expect(retrieve_stub).to(have_been_requested.times(1))
+      end
+
+      it "retrieve hello-world completed result with stack_id & stack_job_id" do
+        async_response = Terraform::Runner::ResponseAsync.new(
+          @hello_world_update_response['stack_id'],
+          @hello_world_update_response['stack_job_id']
+        )
+        response = async_response.response
+
+        expect(retrieve_update_stub).to(have_been_requested.times(1))
+        expect(response.stack_id).to(eq(@hello_world_update_response['stack_id']))
+        expect(response.stack_job_id).to(eq(@hello_world_update_response['stack_job_id']))
+        expect(response.action).to(eq('APPLY'))
+        expect(response.stack_name).to(eq(@hello_world_update_response['stack_name']))
+
+        expect(response.status).to(eq('SUCCESS'), "terraform-runner failed with:\n#{response.status}")
+        expect(response.message).to(include('Apply complete! Resources: 1 added, 0 changed, 1 destroyed.'))
       end
     end
 
@@ -198,6 +237,7 @@ RSpec.describe(Terraform::Runner) do
 
         expect(response.status).to(eq('IN_PROGRESS'), "terraform-runner failed with:\n#{response.status}")
         expect(response.stack_id).to(eq(@hello_world_create_response['stack_id']))
+        expect(response.stack_job_id).to(eq(@hello_world_create_response['stack_job_id']))
         expect(response.action).to(eq('CREATE'))
         expect(response.stack_name).to(eq(@hello_world_create_response['stack_name']))
         expect(response.message).to(be_nil)
@@ -277,6 +317,7 @@ RSpec.describe(Terraform::Runner) do
         response = async_response.response
         expect(retrieve_stub).to(have_been_requested.times(1))
         expect(response.stack_id).to(eq(@hello_world_update_response['stack_id']))
+        expect(response.stack_job_id).to(eq(@hello_world_update_response['stack_job_id']))
         expect(response.action).to(eq('APPLY'))
         expect(response.stack_name).to(eq(@hello_world_update_response['stack_name']))
 
@@ -338,6 +379,7 @@ RSpec.describe(Terraform::Runner) do
         response = async_response.response
         expect(delete_retrieve_stub).to(have_been_requested.times(1))
         expect(response.stack_id).to(eq(@hello_world_delete_response['stack_id']))
+        expect(response.stack_job_id).to(eq(@hello_world_delete_response['stack_job_id']))
         expect(response.action).to(eq('DELETE'))
         expect(response.stack_name).to(eq(@hello_world_delete_response['stack_name']))
 

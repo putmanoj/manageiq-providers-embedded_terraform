@@ -15,6 +15,7 @@ module Terraform
                .tags(values[:tags])
                .env_vars(values[:env_vars])
                .stack_id(values[:stack_id])
+               .stack_job_id(values[:stack_job_id])
       end
 
       def initialize(action_type)
@@ -63,6 +64,11 @@ module Terraform
 
       def stack_id(stack_id)
         @request_arguments[:stack_id] = stack_id if stack_id.present?
+        self
+      end
+
+      def stack_job_id(stack_job_id)
+        @request_arguments[:stack_job_id] = stack_job_id if stack_job_id.present?
         self
       end
 
