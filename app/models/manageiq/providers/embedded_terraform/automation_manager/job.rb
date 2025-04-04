@@ -33,29 +33,24 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
       :env_vars                    => options[:env_vars]
     }
 
-    case action
-    when ResourceAction::RECONFIGURE
-      Terraform::Runner.run(
-        Terraform::Runner::ActionType::UPDATE,
-        template_path,
-        runner_options.merge(:stack_id => options[:terraform_stack_id])
+    # required for ResourceAction::RECONFIGURE, ResourceAction::RETIREMENT
+    unless action == ResourceAction::PROVISION
+      runner_options = runner_options.merge(
+        :stack_id => options[:terraform_stack_id]
       )
-    when ResourceAction::RETIREMENT
-      Terraform::Runner.run(
-        Terraform::Runner::ActionType::DELETE,
-        template_path,
-        runner_options.merge(:stack_id => options[:terraform_stack_id])
-      )
-    else
-      response = Terraform::Runner.run(
-        Terraform::Runner::ActionType::CREATE,
-        template_path,
-        runner_options
-      )
-      # save stack_id from the created stack
-      options[:terraform_stack_id] = response.stack_id
-      save!
     end
+
+    response = Terraform::Runner.run(
+      terraform_runner_action_type(action),
+      template_path,
+      runner_options
+    )
+
+    # save stack_id from the created stack
+    options[:terraform_stack_id] = response.stack_id
+    # and we need terraform_stack_job_id especially, when running Reconfigure action
+    options[:terraform_stack_job_id] = response.stack_job_id
+    save!
 
     queue_poll_runner
   end
@@ -130,9 +125,14 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
   end
 
   def stack_response
-    return if options[:terraform_stack_id].nil?
+    action                 = options[:action]
+    terraform_stack_id     = options[:terraform_stack_id]
+    terraform_stack_job_id = options[:terraform_stack_job_id]
+    $embedded_terraform_log.info("ResponseAsync for action:#{action},stack_id:#{terraform_stack_id},stack_job_id:#{terraform_stack_job_id}")
 
-    @stack_response ||= Terraform::Runner::ResponseAsync.new(options[:terraform_stack_id])
+    return if terraform_stack_id.nil?
+
+    @stack_response ||= Terraform::Runner::ResponseAsync.new(terraform_stack_id, terraform_stack_job_id)
   end
 
   def decrypt_vars(input_vars)
@@ -176,5 +176,16 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
   rescue => error
     _log.error("Failure in parsing payload for template/#{template.id}, caused by #{error.message}")
     {}
+  end
+
+  def terraform_runner_action_type(resource_action)
+    case resource_action
+    when ResourceAction::RECONFIGURE
+      Terraform::Runner::ActionType::UPDATE
+    when ResourceAction::RETIREMENT
+      Terraform::Runner::ActionType::DELETE
+    else
+      Terraform::Runner::ActionType::CREATE
+    end
   end
 end
