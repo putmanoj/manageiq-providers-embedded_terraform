@@ -122,7 +122,7 @@ RSpec.describe(Terraform::Runner) do
       retrieve_update_stub = nil
 
       before do
-        ENV["TERRAFORM_RUNNER_URL"] = "https://1.2.3.4:7000"
+        stub_const("ENV", ENV.to_h.merge("TERRAFORM_RUNNER_URL" => terraform_runner_url))
 
         retrieve_stub = stub_request(:post, "#{terraform_runner_url}/api/stack/retrieve")
                         .with(
@@ -277,16 +277,16 @@ RSpec.describe(Terraform::Runner) do
       end
 
       before do
-        ENV["TERRAFORM_RUNNER_URL"] = "https://1.2.3.4:7000"
+        stub_const("ENV", ENV.to_h.merge("TERRAFORM_RUNNER_URL" => terraform_runner_url))
 
-        update_stub = stub_request(:post, "https://1.2.3.4:7000/api/stack/apply")
+        update_stub = stub_request(:post, "#{terraform_runner_url}/api/stack/apply")
                       .with { |req| verify_req(req) }
                       .to_return(
                         :status => 200,
                         :body   => @hello_world_update_response.to_json
                       )
 
-        retrieve_stub = stub_request(:post, "https://1.2.3.4:7000/api/stack/retrieve")
+        retrieve_stub = stub_request(:post, "#{terraform_runner_url}/api/stack/retrieve")
                         .with(:body => hash_including({:stack_id => @hello_world_retrieve_update_response['stack_id']}))
                         .to_return(
                           :status => 200,
@@ -339,16 +339,16 @@ RSpec.describe(Terraform::Runner) do
       end
 
       before do
-        ENV["TERRAFORM_RUNNER_URL"] = "https://1.2.3.4:7000"
+        stub_const("ENV", ENV.to_h.merge("TERRAFORM_RUNNER_URL" => terraform_runner_url))
 
-        delete_stub = stub_request(:post, "https://1.2.3.4:7000/api/stack/delete")
+        delete_stub = stub_request(:post, "#{terraform_runner_url}/api/stack/delete")
                       .with { |req| verify_req(req) }
                       .to_return(
                         :status => 200,
                         :body   => @hello_world_delete_response.to_json
                       )
 
-        delete_retrieve_stub = stub_request(:post, "https://1.2.3.4:7000/api/stack/retrieve")
+        delete_retrieve_stub = stub_request(:post, "#{terraform_runner_url}/api/stack/retrieve")
                                .with(:body => hash_including({:stack_id => @hello_world_retrieve_delete_response['stack_id']}))
                                .to_return(
                                  :status => 200,
