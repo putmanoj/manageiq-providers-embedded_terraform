@@ -84,13 +84,13 @@ RSpec.describe(Terraform::Runner) do
         response = async_response.response
         expect(retrieve_stub).to(have_been_requested.times(1))
 
-        expect(response.status).to(eq('IN_PROGRESS'), "terraform-runner failed with:\n#{response.status}")
-        expect(response.stack_id).to(eq(@hello_world_create_response['stack_id']))
-        expect(response.stack_job_id).to(eq(@hello_world_create_response['stack_job_id']))
-        expect(response.action).to(eq('CREATE'))
-        expect(response.stack_name).to(eq(@hello_world_create_response['stack_name']))
-        expect(response.message).to(be_nil)
-        expect(response.details).to(be_nil)
+        expect(response.status).to eq('IN_PROGRESS')
+        expect(response.stack_id).to eq(@hello_world_create_response['stack_id'])
+        expect(response.stack_job_id).to eq(@hello_world_create_response['stack_job_id'])
+        expect(response.action).to eq('CREATE')
+        expect(response.stack_name).to eq(@hello_world_create_response['stack_name'])
+        expect(response.message).to be_nil
+        expect(response.details).to be_nil
       end
 
       it "handles trailing '/' in template path" do
@@ -107,13 +107,13 @@ RSpec.describe(Terraform::Runner) do
         response = async_response.response
         expect(retrieve_stub).to(have_been_requested.times(1))
 
-        expect(response.status).to(eq('IN_PROGRESS'), "terraform-runner failed with:\n#{response.status}")
-        expect(response.stack_id).to(eq(@hello_world_create_response['stack_id']))
-        expect(response.stack_job_id).to(eq(@hello_world_create_response['stack_job_id']))
-        expect(response.action).to(eq('CREATE'))
-        expect(response.stack_name).to(eq(@hello_world_create_response['stack_name']))
-        expect(response.message).to(be_nil)
-        expect(response.details).to(be_nil)
+        expect(response.status).to eq('IN_PROGRESS')
+        expect(response.stack_id).to eq(@hello_world_create_response['stack_id'])
+        expect(response.stack_job_id).to eq(@hello_world_create_response['stack_job_id'])
+        expect(response.action).to eq('CREATE')
+        expect(response.stack_name).to eq(@hello_world_create_response['stack_name'])
+        expect(response.message).to be_nil
+        expect(response.details).to be_nil
       end
     end
 
@@ -154,15 +154,15 @@ RSpec.describe(Terraform::Runner) do
         )
         response = async_response.response
 
-        expect(response.status).to(eq('SUCCESS'), "terraform-runner failed with:\n#{response.status}")
-        expect(response.message).to(include('greeting = "Hello World"'))
-        expect(response.stack_id).to(eq(@hello_world_retrieve_create_response['stack_id']))
-        expect(response.stack_job_id).to(eq(@hello_world_retrieve_create_response['stack_job_id']))
-        expect(response.action).to(eq('CREATE'))
-        expect(response.stack_name).to(eq(@hello_world_retrieve_create_response['stack_name']))
-        expect(response.details.keys).to(eq(%w[resources outputs]))
+        expect(response.status).to eq('SUCCESS')
+        expect(response.message).to include('greeting = "Hello World"')
+        expect(response.stack_id).to eq(@hello_world_retrieve_create_response['stack_id'])
+        expect(response.stack_job_id).to eq(@hello_world_retrieve_create_response['stack_job_id'])
+        expect(response.action).to eq('CREATE')
+        expect(response.stack_name).to eq(@hello_world_retrieve_create_response['stack_name'])
+        expect(response.details.keys).to eq(%w[resources outputs])
 
-        expect(retrieve_stub).to(have_been_requested.times(1))
+        expect(retrieve_stub).to have_been_requested.times(1)
       end
 
       it "retrieve hello-world completed result with stack_id & stack_job_id" do
@@ -173,13 +173,13 @@ RSpec.describe(Terraform::Runner) do
         response = async_response.response
 
         expect(retrieve_update_stub).to(have_been_requested.times(1))
-        expect(response.stack_id).to(eq(@hello_world_update_response['stack_id']))
-        expect(response.stack_job_id).to(eq(@hello_world_update_response['stack_job_id']))
-        expect(response.action).to(eq('APPLY'))
-        expect(response.stack_name).to(eq(@hello_world_update_response['stack_name']))
+        expect(response.stack_id).to eq(@hello_world_update_response['stack_id'])
+        expect(response.stack_job_id).to eq(@hello_world_update_response['stack_job_id'])
+        expect(response.action).to eq('APPLY')
+        expect(response.stack_name).to eq(@hello_world_update_response['stack_name'])
 
-        expect(response.status).to(eq('SUCCESS'), "terraform-runner failed with:\n#{response.status}")
-        expect(response.message).to(include('Apply complete! Resources: 1 added, 0 changed, 1 destroyed.'))
+        expect(response.status).to eq('SUCCESS')
+        expect(response.message).to include('Apply complete! Resources: 1 added, 0 changed, 1 destroyed.')
       end
     end
 
@@ -196,8 +196,7 @@ RSpec.describe(Terraform::Runner) do
                         :body   => @hello_world_create_response.to_json
                       )
 
-        cancel_response = @hello_world_create_response.clone
-        cancel_response[:status] = 'CANCELLED'
+        cancel_response = @hello_world_create_response.clone.merge(:status => 'CANCELLED')
 
         retrieve_stub = stub_request(:post, "#{terraform_runner_url}/api/stack/retrieve")
                         .with(:body => hash_including({:stack_id => @hello_world_retrieve_create_response['stack_id']}))
@@ -229,38 +228,38 @@ RSpec.describe(Terraform::Runner) do
             :input_vars => input_vars
           }
         )
-        expect(create_stub).to(have_been_requested.times(1))
-        expect(retrieve_stub).to(have_been_requested.times(0))
+        expect(create_stub).to have_been_requested.times(1)
+        expect(retrieve_stub).to have_been_requested.times(0)
 
         response = async_response.response
-        expect(retrieve_stub).to(have_been_requested.times(1))
+        expect(retrieve_stub).to have_been_requested.times(1)
 
-        expect(response.status).to(eq('IN_PROGRESS'), "terraform-runner failed with:\n#{response.status}")
-        expect(response.stack_id).to(eq(@hello_world_create_response['stack_id']))
-        expect(response.stack_job_id).to(eq(@hello_world_create_response['stack_job_id']))
-        expect(response.action).to(eq('CREATE'))
-        expect(response.stack_name).to(eq(@hello_world_create_response['stack_name']))
-        expect(response.message).to(be_nil)
-        expect(response.details).to(be_nil)
+        expect(response.status).to eq('IN_PROGRESS')
+        expect(response.stack_id).to eq(@hello_world_create_response['stack_id'])
+        expect(response.stack_job_id).to eq(@hello_world_create_response['stack_job_id'])
+        expect(response.action).to eq('CREATE')
+        expect(response.stack_name).to eq(@hello_world_create_response['stack_name'])
+        expect(response.message).to be_nil
+        expect(response.details).to be_nil
 
         # Stop the job terraform-runneer
         async_response.stop
-        expect(cancel_stub).to(have_been_requested.times(1))
-        expect(retrieve_stub).to(have_been_requested.times(2))
+        expect(cancel_stub).to have_been_requested.times(1)
+        expect(retrieve_stub).to have_been_requested.times(2)
 
         # fetch latest response
         response = async_response.response
-        expect(retrieve_stub).to(have_been_requested.times(3))
-        expect(response.status).to(eq('CANCELLED'), "terraform-runner failed with:\n#{response.status}")
+        expect(retrieve_stub).to have_been_requested.times(3)
+        expect(response.status).to eq('CANCELLED')
 
         # fetch latest response again, no more api calls
         response = async_response.response
-        expect(retrieve_stub).to(have_been_requested.times(3))
-        expect(response.status).to(eq('CANCELLED'), "terraform-runner failed with:\n#{response.status}")
+        expect(retrieve_stub).to have_been_requested.times(3)
+        expect(response.status).to eq('CANCELLED')
       end
 
       it "is aliased as stop_stack" do
-        expect(Terraform::Runner.method(:stop)).to(eq(Terraform::Runner.method(:stop_async)))
+        expect(Terraform::Runner.method(:stop)).to eq(Terraform::Runner.method(:stop_async))
       end
     end
 
@@ -270,10 +269,10 @@ RSpec.describe(Terraform::Runner) do
 
       def verify_req(req)
         body = JSON.parse(req.body)
-        expect(body["stack_id"]).to(eq(@hello_world_retrieve_update_response['stack_id']))
-        expect(body).to(have_key('templateZipFile'))
-        expect(body["parameters"]).to(eq([{"name" => "name", "value" => "Future-World", "secured" => "false"}]))
-        expect(body["cloud_providers"]).to(eq([]))
+        expect(body["stack_id"]).to eq(@hello_world_retrieve_update_response['stack_id'])
+        expect(body).to have_key('templateZipFile')
+        expect(body["parameters"]).to eq([{"name" => "name", "value" => "Future-World", "secured" => "false"}])
+        expect(body["cloud_providers"]).to be_empty
       end
 
       before do
@@ -315,14 +314,14 @@ RSpec.describe(Terraform::Runner) do
         expect(update_stub).to(have_been_requested.times(1))
 
         response = async_response.response
-        expect(retrieve_stub).to(have_been_requested.times(1))
-        expect(response.stack_id).to(eq(@hello_world_update_response['stack_id']))
-        expect(response.stack_job_id).to(eq(@hello_world_update_response['stack_job_id']))
-        expect(response.action).to(eq('APPLY'))
-        expect(response.stack_name).to(eq(@hello_world_update_response['stack_name']))
+        expect(retrieve_stub).to have_been_requested.times(1)
+        expect(response.stack_id).to eq(@hello_world_update_response['stack_id'])
+        expect(response.stack_job_id).to eq(@hello_world_update_response['stack_job_id'])
+        expect(response.action).to eq('APPLY')
+        expect(response.stack_name).to eq(@hello_world_update_response['stack_name'])
 
-        expect(response.status).to(eq('SUCCESS'), "terraform-runner failed with:\n#{response.status}")
-        expect(response.message).to(include('Apply complete! Resources: 1 added, 0 changed, 1 destroyed.'))
+        expect(response.status).to eq('SUCCESS')
+        expect(response.message).to include('Apply complete! Resources: 1 added, 0 changed, 1 destroyed.')
       end
     end
 
@@ -377,15 +376,15 @@ RSpec.describe(Terraform::Runner) do
         expect(delete_stub).to(have_been_requested.times(1))
 
         response = async_response.response
-        expect(delete_retrieve_stub).to(have_been_requested.times(1))
-        expect(response.stack_id).to(eq(@hello_world_delete_response['stack_id']))
-        expect(response.stack_job_id).to(eq(@hello_world_delete_response['stack_job_id']))
-        expect(response.action).to(eq('DELETE'))
-        expect(response.stack_name).to(eq(@hello_world_delete_response['stack_name']))
+        expect(delete_retrieve_stub).to have_been_requested.times(1)
+        expect(response.stack_id).to eq(@hello_world_delete_response['stack_id'])
+        expect(response.stack_job_id).to eq(@hello_world_delete_response['stack_job_id'])
+        expect(response.action).to eq('DELETE')
+        expect(response.stack_name).to eq(@hello_world_delete_response['stack_name'])
 
-        expect(response.status).to(eq('SUCCESS'), "terraform-runner failed with:\n#{response.status}")
-        expect(response.message).to(include('Destroy complete! Resources: 1 destroyed.'))
-        expect(response.details).to(eq({"resources" => [], "outputs" => []}))
+        expect(response.status).to eq('SUCCESS')
+        expect(response.message).to include('Destroy complete! Resources: 1 destroyed.')
+        expect(response.details).to eq({"resources" => [], "outputs" => []})
       end
     end
   end
@@ -430,8 +429,8 @@ RSpec.describe(Terraform::Runner) do
 
       def verify_req(req)
         body = JSON.parse(req.body)
-        expect(body["parameters"]).to(eq([]))
-        expect(body["cloud_providers"]).to(eq(cloud_providers_conn_params))
+        expect(body["parameters"]).to be_empty
+        expect(body["cloud_providers"]).to eq(cloud_providers_conn_params)
       end
 
       create_stub = nil
@@ -457,7 +456,7 @@ RSpec.describe(Terraform::Runner) do
             :credentials => [amazon_cred]
           }
         )
-        expect(create_stub).to(have_been_requested.times(1))
+        expect(create_stub).to have_been_requested.times(1)
       end
     end
 
@@ -515,8 +514,8 @@ RSpec.describe(Terraform::Runner) do
 
       def verify_req(req)
         body = JSON.parse(req.body)
-        expect(body["parameters"]).to(eq([]))
-        expect(body["cloud_providers"]).to(eq(cloud_providers_conn_params))
+        expect(body["parameters"]).to be_empty
+        expect(body["cloud_providers"]).to eq(cloud_providers_conn_params)
       end
 
       create_stub = nil
@@ -542,7 +541,7 @@ RSpec.describe(Terraform::Runner) do
             :credentials => [vsphere_cred, ibmcloud_cred]
           }
         )
-        expect(create_stub).to(have_been_requested.times(1))
+        expect(create_stub).to have_been_requested.times(1)
       end
     end
   end
@@ -569,10 +568,10 @@ RSpec.describe(Terraform::Runner) do
 
       it "parse input/output params from hello-world terraform template" do
         response = Terraform::Runner.parse_template_variables(File.join(__dir__, "runner/data/hello-world"))
-        expect(template_variables_stub).to(have_been_requested.times(1))
+        expect(template_variables_stub).to have_been_requested.times(1)
 
         template_input_params = response['template_input_params']
-        expect(template_input_params.length).to(eq(1))
+        expect(template_input_params.length).to eq(1)
         expect(template_input_params.first).to be_kind_of(Hash).and include(
           "name"        => "name",
           "label"       => "name",
@@ -586,7 +585,7 @@ RSpec.describe(Terraform::Runner) do
         )
 
         template_output_params = response['template_output_params']
-        expect(template_output_params.length).to(eq(1))
+        expect(template_output_params.length).to eq(1)
         expect(template_output_params.first).to be_kind_of(Hash).and include(
           "name"        => "greeting",
           "label"       => "greeting",
