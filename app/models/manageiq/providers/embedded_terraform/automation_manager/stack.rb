@@ -29,7 +29,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
     def raw_create_stack(terraform_template, options = {})
       terraform_template.run(options)
     rescue => err
-      _log.error("Failed to create job from template(#{terraform_template.name}), error: #{err}")
+      $embedded_terraform_log.error("Failed to create job from template(#{terraform_template.name}), error: #{err}")
       raise MiqException::MiqOrchestrationProvisionError, err.to_s, err.backtrace
     end
 

@@ -68,7 +68,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
 
     return queue_signal(:finish, message, status) if success?
 
-    _log.error("Failed to run template: [#{error_message}]")
+    $embedded_terraform_log.error("Failed to run template: [#{error_message}]")
 
     abort_job("Failed to run template", "error")
   end
@@ -128,7 +128,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
     action                 = options[:action]
     terraform_stack_id     = options[:terraform_stack_id]
     terraform_stack_job_id = options[:terraform_stack_job_id]
-    $embedded_terraform_log.info("ResponseAsync for action:#{action},stack_id:#{terraform_stack_id},stack_job_id:#{terraform_stack_job_id}")
+    $embedded_terraform_log.info("ResponseAsync for action:#{action}, stack_id:#{terraform_stack_id}, stack_job_id:#{terraform_stack_job_id}")
 
     return if terraform_stack_id.nil?
 
@@ -151,7 +151,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
     options[:git_checkout_tempdir] = Dir.mktmpdir("embedded-terraform-runner-git")
     save!
 
-    _log.info("Checking out git repository to #{options[:git_checkout_tempdir].inspect}...")
+    $embedded_terraform_log.info("Checking out git repository to #{options[:git_checkout_tempdir].inspect}...")
     configuration_script_source.checkout_git_repository(options[:git_checkout_tempdir])
   rescue MiqException::MiqUnreachableError => err
     miq_task.job.timeout!
@@ -161,7 +161,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
   def cleanup_git_repository
     return unless options[:git_checkout_tempdir]
 
-    _log.info("Cleaning up git repository checkout at #{options[:git_checkout_tempdir].inspect}...")
+    $embedded_terraform_log.info("Cleaning up git repository checkout at #{options[:git_checkout_tempdir].inspect}...")
     FileUtils.rm_rf(options[:git_checkout_tempdir])
   rescue Errno::ENOENT
     nil
@@ -174,7 +174,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
     payload = JSON.parse(template.payload)
     (payload['input_vars'] || []).index_by { |v| v['name'] }
   rescue => error
-    _log.error("Failure in parsing payload for template/#{template.id}, caused by #{error.message}")
+    $embedded_terraform_log.error("Failure in parsing payload for template/#{template.id}, caused by #{error.message}")
     {}
   end
 
