@@ -127,7 +127,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
     action                 = options[:action]
     terraform_stack_id     = options[:terraform_stack_id]
     terraform_stack_job_id = options[:terraform_stack_job_id]
-    $embedded_terraform_log.debug("ResponseAsync for action:#{action}, stack_id:#{terraform_stack_id}, stack_job_id:#{terraform_stack_job_id}")
+    $embedded_terraform_log.debug("ResponseAsync stack/#{terraform_stack_id}/#{terraform_stack_job_id} for #{action}")
 
     return if terraform_stack_id.nil?
 

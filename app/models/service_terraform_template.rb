@@ -24,6 +24,7 @@ class ServiceTerraformTemplate < ServiceGeneric
   end
 
   def execute(action)
+    $embedded_terraform_log.debug("Service(#{id}).execute(#{action}) starts")
     task_opts = {
       :action => "Launching Terraform Template",
       :userid => "system"
@@ -40,10 +41,13 @@ class ServiceTerraformTemplate < ServiceGeneric
 
     task_id = MiqTask.generic_action_with_callback(task_opts, queue_opts)
     task    = MiqTask.wait_for_taskid(task_id)
+
+    $embedded_terraform_log.debug("Service(#{id}).execute(#{action}) ends")
     raise task.message unless task.status_ok?
   end
 
   def postprocess(action)
+    $embedded_terraform_log.debug("Service(#{id}).postprocess(#{action}) starts")
     case action
     when ResourceAction::RECONFIGURE
       # As we have reached here, so the action was successful.
@@ -51,10 +55,9 @@ class ServiceTerraformTemplate < ServiceGeneric
       $embedded_terraform_log.info("successfully reconfiguired, save reconfigure job options, to service dialog options")
       job_options = get_job_options(action)
       params = job_options[:input_vars] || {}
-      save_params_to_dialog_options(params)
-    else
-      _log.debug("postprocess for #{action}")
+      update_service_dialog_options(params)
     end
+    $embedded_terraform_log.debug("Service(#{id}).postprocess(#{action}) ends")
   end
 
   def check_completed(action)
@@ -70,15 +73,37 @@ class ServiceTerraformTemplate < ServiceGeneric
   end
 
   def launch_terraform_template(action)
+    $embedded_terraform_log.debug("Service(#{id}).launch_terraform_template(#{action}) starts")
     terraform_template = terraform_template(action)
 
     # runs provision or retirement or reconfigure job, based on job_options
     stack = ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack.create_stack(terraform_template, get_job_options(action))
+
+    # We save the newly created Job/OrchestrationStack.id, with job options, to identify the current running Job/OrchestrationStack.
+    # This especially is needed for Reconfigure action, as the action can run multiple times for same service instance, which creates multiple OrchestrationStack(job)s,
+    # unlike Provision or Retirement actions, each having single OrchestrationStack(job).
+    save_orchestration_stack_id(action, stack.id)
+
     add_resource!(stack, :name => action)
+
+    $embedded_terraform_log.debug("Service(#{id}).launch_terraform_template(#{action}) ends")
   end
 
   def stack(action)
-    service_resources.find_by(:name => action, :resource_type => 'OrchestrationStack').try(:resource)
+    case action
+    when ResourceAction::RECONFIGURE
+      # we need to reload, to pull updates to options from db,
+      # because the stack_id was saved in service instance in queue job
+      reload
+
+      job_options = options[job_option_key(action)]
+      orchestration_stack_id = job_options[:orchestration_stack_id]
+      $embedded_terraform_log.debug("find service_resource by resource_id:#{orchestration_stack_id}")
+
+      service_resources.find_by(:resource_id => orchestration_stack_id).try(:resource)
+    else
+      service_resources.find_by(:name => action, :resource_type => 'OrchestrationStack').try(:resource)
+    end
   end
 
   def refresh(action)
@@ -192,13 +217,22 @@ class ServiceTerraformTemplate < ServiceGeneric
     end
   end
 
-  def save_params_to_dialog_options(params)
+  def update_service_dialog_options(params)
     dialog_options = options[:dialog] || {}
     params.each do |attr, val|
       dialog_key = "dialog_#{attr}"
       dialog_options[dialog_key] = val
     end
     options[:dialog] = dialog_options
+    save!
+  end
+
+  def save_orchestration_stack_id(action, stack_id)
+    job_options = options[job_option_key(action)] || {}
+    job_options[:orchestration_stack_id] = stack_id
+
+    $embedded_terraform_log.info("save orchestration_stack_id:#{stack_id} with job_options for action:#{action}")
+    options[job_option_key(action)] = job_options
     save!
   end
 end
