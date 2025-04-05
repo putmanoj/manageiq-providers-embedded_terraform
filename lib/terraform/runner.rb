@@ -43,7 +43,7 @@ module Terraform
         raise "Not supported action type in this method, instead use method parse_terraform_variables" if action_type == ActionType::TEMPLATE_VARIABLES
         raise "Not supported action type '#{action_type}'" unless ActionType.actions.include?(action_type)
 
-        _log.debug("Run #{action_type} for template: #{template_path}")
+        $embedded_terraform_log.debug("Run #{action_type} for template: #{template_path}")
 
         response = run_terraform_runner_stack_api(
           Request.new(action_type)
@@ -108,7 +108,7 @@ module Terraform
           *request.build_json_post_arguments
         )
 
-        _log.debug("==== http_response.body: \n #{http_response.body}")
+        $embedded_terraform_log.debug("==== http_response.body: \n #{http_response.body}")
         JSON.parse(http_response.body)
       end
 
@@ -156,9 +156,9 @@ module Terraform
           action_endpoint,
           *request.build_json_post_arguments
         )
-        _log.info("terraform-runnner[#{action_endpoint}] running ...")
+        $embedded_terraform_log.info("terraform-runnner[#{action_endpoint}] running ...")
 
-        _log.debug("==== http_response.body: \n #{http_response.body}")
+        $embedded_terraform_log.debug("==== http_response.body: \n #{http_response.body}")
         Terraform::Runner::Response.parsed_response(http_response)
       end
 
