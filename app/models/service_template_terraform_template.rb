@@ -4,7 +4,7 @@ class ServiceTemplateTerraformTemplate < ServiceTemplate
   end
 
   def self.default_reconfiguration_entry_point
-    '/Service/Reconfiguration/StateMachines/Reconfigure/default'
+    '/Service/Generic/StateMachines/GenericLifecycle/reconfigure'
   end
 
   def self.default_retirement_entry_point

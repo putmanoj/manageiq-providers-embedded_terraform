@@ -190,7 +190,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
       Terraform::Runner::ActionType::UPDATE
     when ResourceAction::RETIREMENT
       Terraform::Runner::ActionType::DELETE
-    when ResoureAction::PROVISION
+    when ResourceAction::PROVISION
       Terraform::Runner::ActionType::CREATE
     else
       raise "Invalid resource_action type #{resource_action}"

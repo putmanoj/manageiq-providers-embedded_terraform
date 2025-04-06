@@ -231,7 +231,7 @@ class ServiceTerraformTemplate < ServiceGeneric
     job_options = options[job_option_key(action)] || {}
     job_options[:orchestration_stack_id] = stack_id
 
-    $embedded_terraform_log.info("save orchestration_stack_id:#{stack_id} with job_options for action:#{action}")
+    $embedded_terraform_log.info("save orchestration_stack_id:#{stack_id} with job_options for #{action}")
     options[job_option_key(action)] = job_options
     save!
   end
