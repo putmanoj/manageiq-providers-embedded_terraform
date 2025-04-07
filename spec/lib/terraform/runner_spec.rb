@@ -35,9 +35,6 @@ RSpec.describe(Terraform::Runner) do
 
   context 'Create Stack for hello-world terraform template' do
     describe '.run create stack with input_vars' do
-      create_stub = nil
-      retrieve_stub = nil
-
       def verify_req(req)
         body = JSON.parse(req.body)
         expect(body["name"]).to(start_with('stack-'))
@@ -46,20 +43,22 @@ RSpec.describe(Terraform::Runner) do
         expect(body["cloud_providers"]).to(eq([]))
       end
 
-      before do
-        create_stub = stub_request(:post, "#{terraform_runner_url}/api/stack/create")
-                      .with { |req| verify_req(req) }
-                      .to_return(
-                        :status => 200,
-                        :body   => @hello_world_create_response.to_json
-                      )
+      let!(:create_stub) do
+        stub_request(:post, "#{terraform_runner_url}/api/stack/create")
+          .with { |req| verify_req(req) }
+          .to_return(
+            :status => 200,
+            :body   => @hello_world_create_response.to_json
+          )
+      end
 
-        retrieve_stub = stub_request(:post, "#{terraform_runner_url}/api/stack/retrieve")
-                        .with(:body => hash_including({:stack_id => @hello_world_retrieve_create_response['stack_id']}))
-                        .to_return(
-                          :status => 200,
-                          :body   => @hello_world_create_response.to_json
-                        )
+      let!(:retrieve_stub) do
+        stub_request(:post, "#{terraform_runner_url}/api/stack/retrieve")
+          .with(:body => hash_including({:stack_id => @hello_world_retrieve_create_response['stack_id']}))
+          .to_return(
+            :status => 200,
+            :body   => @hello_world_create_response.to_json
+          )
       end
 
       let(:input_vars) { {'name' => 'New-World'} }
@@ -118,34 +117,31 @@ RSpec.describe(Terraform::Runner) do
     end
 
     describe 'ResponseAsync' do
-      retrieve_stub = nil
-      retrieve_update_stub = nil
+      let!(:retrieve_stub) do
+        stub_request(:post, "#{terraform_runner_url}/api/stack/retrieve")
+          .with(
+            :body => hash_including({
+                                      :stack_id => @hello_world_retrieve_create_response['stack_id']
+                                    })
+          )
+          .to_return(
+            :status => 200,
+            :body   => @hello_world_retrieve_create_response.to_json
+          )
+      end
 
-      before do
-        stub_const("ENV", ENV.to_h.merge("TERRAFORM_RUNNER_URL" => terraform_runner_url))
-
-        retrieve_stub = stub_request(:post, "#{terraform_runner_url}/api/stack/retrieve")
-                        .with(
-                          :body => hash_including({
-                                                    :stack_id => @hello_world_retrieve_create_response['stack_id']
-                                                  })
-                        )
-                        .to_return(
-                          :status => 200,
-                          :body   => @hello_world_retrieve_create_response.to_json
-                        )
-
-        retrieve_update_stub = stub_request(:post, "#{terraform_runner_url}/api/stack/retrieve")
-                               .with(
-                                 :body => hash_including({
-                                                           :stack_id     => @hello_world_retrieve_update_response['stack_id'],
-                                                           :stack_job_id => @hello_world_retrieve_update_response['stack_job_id']
-                                                         })
-                               )
-                               .to_return(
-                                 :status => 200,
-                                 :body   => @hello_world_retrieve_update_response.to_json
-                               )
+      let!(:retrieve_update_stub) do
+        stub_request(:post, "#{terraform_runner_url}/api/stack/retrieve")
+          .with(
+            :body => hash_including({
+                                      :stack_id     => @hello_world_retrieve_update_response['stack_id'],
+                                      :stack_job_id => @hello_world_retrieve_update_response['stack_job_id']
+                                    })
+          )
+          .to_return(
+            :status => 200,
+            :body   => @hello_world_retrieve_update_response.to_json
+          )
       end
 
       it "retrieve hello-world completed result with only stack_id" do
@@ -191,38 +187,39 @@ RSpec.describe(Terraform::Runner) do
     end
 
     describe 'Stop running a create-stack job' do
-      create_stub = nil
-      retrieve_stub = nil
-      cancel_stub = nil
+      let!(:create_stub) do
+        stub_request(:post, "#{terraform_runner_url}/api/stack/create")
+          .with(:body => hash_including({:parameters => [], :cloud_providers => []}))
+          .to_return(
+            :status => 200,
+            :body   => @hello_world_create_response.to_json
+          )
+      end
 
-      before do
-        create_stub = stub_request(:post, "#{terraform_runner_url}/api/stack/create")
-                      .with(:body => hash_including({:parameters => [], :cloud_providers => []}))
-                      .to_return(
-                        :status => 200,
-                        :body   => @hello_world_create_response.to_json
-                      )
+      let!(:cancel_response) { @hello_world_create_response.clone.merge(:status => 'CANCELLED') }
 
-        cancel_response = @hello_world_create_response.clone.merge(:status => 'CANCELLED')
+      let!(:retrieve_stub) do
+        stub_request(:post, "#{terraform_runner_url}/api/stack/retrieve")
+          .with(:body => hash_including({:stack_id => @hello_world_retrieve_create_response['stack_id']}))
+          .to_return(
+            :status => 200,
+            :body   => @hello_world_create_response.to_json
+          )
+          .times(2)
+          .then
+          .to_return(
+            :status => 200,
+            :body   => cancel_response.to_json
+          )
+      end
 
-        retrieve_stub = stub_request(:post, "#{terraform_runner_url}/api/stack/retrieve")
-                        .with(:body => hash_including({:stack_id => @hello_world_retrieve_create_response['stack_id']}))
-                        .to_return(
-                          :status => 200,
-                          :body   => @hello_world_create_response.to_json
-                        )
-                        .times(2)
-                        .then
-                        .to_return(
-                          :status => 200,
-                          :body   => cancel_response.to_json
-                        )
-        cancel_stub = stub_request(:post, "#{terraform_runner_url}/api/stack/cancel")
-                      .with(:body => hash_including({:stack_id => @hello_world_retrieve_create_response['stack_id']}))
-                      .to_return(
-                        :status => 200,
-                        :body   => cancel_response.to_json
-                      )
+      let!(:cancel_stub) do
+        stub_request(:post, "#{terraform_runner_url}/api/stack/cancel")
+          .with(:body => hash_including({:stack_id => @hello_world_retrieve_create_response['stack_id']}))
+          .to_return(
+            :status => 200,
+            :body   => cancel_response.to_json
+          )
       end
 
       let(:input_vars) { {} }
@@ -271,9 +268,6 @@ RSpec.describe(Terraform::Runner) do
     end
 
     describe 'Update stack for Reconfiguration of created stack' do
-      update_stub = nil
-      retrieve_stub = nil
-
       def verify_req(req)
         body = JSON.parse(req.body)
         expect(body["stack_id"]).to eq(@hello_world_retrieve_update_response['stack_id'])
@@ -282,22 +276,22 @@ RSpec.describe(Terraform::Runner) do
         expect(body["cloud_providers"]).to be_empty
       end
 
-      before do
-        stub_const("ENV", ENV.to_h.merge("TERRAFORM_RUNNER_URL" => terraform_runner_url))
+      let!(:update_stub) do
+        stub_request(:post, "#{terraform_runner_url}/api/stack/apply")
+          .with { |req| verify_req(req) }
+          .to_return(
+            :status => 200,
+            :body   => @hello_world_update_response.to_json
+          )
+      end
 
-        update_stub = stub_request(:post, "#{terraform_runner_url}/api/stack/apply")
-                      .with { |req| verify_req(req) }
-                      .to_return(
-                        :status => 200,
-                        :body   => @hello_world_update_response.to_json
-                      )
-
-        retrieve_stub = stub_request(:post, "#{terraform_runner_url}/api/stack/retrieve")
-                        .with(:body => hash_including({:stack_id => @hello_world_retrieve_update_response['stack_id']}))
-                        .to_return(
-                          :status => 200,
-                          :body   => @hello_world_retrieve_update_response.to_json
-                        )
+      let!(:retrieve_stub) do
+        stub_request(:post, "#{terraform_runner_url}/api/stack/retrieve")
+          .with(:body => hash_including({:stack_id => @hello_world_retrieve_update_response['stack_id']}))
+          .to_return(
+            :status => 200,
+            :body   => @hello_world_retrieve_update_response.to_json
+          )
       end
 
       let(:input_vars) { {'name' => 'Future-World'} }
@@ -333,9 +327,6 @@ RSpec.describe(Terraform::Runner) do
     end
 
     describe 'Delete stack for Retirement of created stack' do
-      delete_stub = nil
-      delete_retrieve_stub = nil
-
       def verify_req(req)
         body = JSON.parse(req.body)
         expect(body["stack_id"]).to(eq(@hello_world_retrieve_delete_response['stack_id']))
@@ -344,22 +335,22 @@ RSpec.describe(Terraform::Runner) do
         expect(body["cloud_providers"]).to(eq([]))
       end
 
-      before do
-        stub_const("ENV", ENV.to_h.merge("TERRAFORM_RUNNER_URL" => terraform_runner_url))
+      let!(:delete_stub) do
+        stub_request(:post, "#{terraform_runner_url}/api/stack/delete")
+          .with { |req| verify_req(req) }
+          .to_return(
+            :status => 200,
+            :body   => @hello_world_delete_response.to_json
+          )
+      end
 
-        delete_stub = stub_request(:post, "#{terraform_runner_url}/api/stack/delete")
-                      .with { |req| verify_req(req) }
-                      .to_return(
-                        :status => 200,
-                        :body   => @hello_world_delete_response.to_json
-                      )
-
-        delete_retrieve_stub = stub_request(:post, "#{terraform_runner_url}/api/stack/retrieve")
-                               .with(:body => hash_including({:stack_id => @hello_world_retrieve_delete_response['stack_id']}))
-                               .to_return(
-                                 :status => 200,
-                                 :body   => @hello_world_retrieve_delete_response.to_json
-                               )
+      let!(:delete_retrieve_stub) do
+        stub_request(:post, "#{terraform_runner_url}/api/stack/retrieve")
+          .with(:body => hash_including({:stack_id => @hello_world_retrieve_delete_response['stack_id']}))
+          .to_return(
+            :status => 200,
+            :body   => @hello_world_retrieve_delete_response.to_json
+          )
       end
 
       let(:input_vars) { {'name' => 'Future-World'} }
@@ -440,11 +431,8 @@ RSpec.describe(Terraform::Runner) do
         expect(body["cloud_providers"]).to eq(cloud_providers_conn_params)
       end
 
-      create_stub = nil
-
-      before do
-        create_stub =
-          stub_request(:post, "#{terraform_runner_url}/api/stack/create")
+      let!(:create_stub) do
+        stub_request(:post, "#{terraform_runner_url}/api/stack/create")
           .with { |req| verify_req(req) }
           .to_return(
             :status => 200,
@@ -525,11 +513,8 @@ RSpec.describe(Terraform::Runner) do
         expect(body["cloud_providers"]).to eq(cloud_providers_conn_params)
       end
 
-      create_stub = nil
-
-      before do
-        create_stub =
-          stub_request(:post, "#{terraform_runner_url}/api/stack/create")
+      let!(:create_stub) do
+        stub_request(:post, "#{terraform_runner_url}/api/stack/create")
           .with { |req| verify_req(req) }
           .to_return(
             :status => 200,
@@ -555,22 +540,19 @@ RSpec.describe(Terraform::Runner) do
 
   context '.parse_template_variables hello-world' do
     describe '.parse_template_variables input/output vars' do
-      template_variables_stub = nil
-
       def verify_req(req)
         body = JSON.parse(req.body)
         expect(body).to(have_key('templateZipFile'))
       end
 
-      before do
+      let!(:template_variables_stub) do
         hello_world_variables_response = JSON.parse(File.read(File.join(__dir__, "runner/data/responses/hello-world-variables-success.json")))
-
-        template_variables_stub = stub_request(:post, "#{terraform_runner_url}/api/template/variables")
-                                  .with { |req| verify_req(req) }
-                                  .to_return(
-                                    :status => 200,
-                                    :body   => hello_world_variables_response.to_json
-                                  )
+        stub_request(:post, "#{terraform_runner_url}/api/template/variables")
+          .with { |req| verify_req(req) }
+          .to_return(
+            :status => 200,
+            :body   => hello_world_variables_response.to_json
+          )
       end
 
       it "parse input/output params from hello-world terraform template" do
