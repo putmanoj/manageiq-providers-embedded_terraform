@@ -3,107 +3,80 @@ module Terraform
     class Request
       include Vmdb::Logging
 
-      attr_reader :request_arguments, :action_type
+      attr_reader :options, :action_type
 
-      def self.build_from_hash(values)
-        Request.new(values[:action_type])
-               .template_path(values[:template_path])
-               .name(values[:name])
-               .credentials(values[:credentials])
-               .input_vars(values[:input_vars], values[:input_vars_type_constraints])
-               .tenant_id(values[:tenant_id])
-               .tags(values[:tags])
-               .env_vars(values[:env_vars])
-               .stack_id(values[:stack_id])
-               .stack_job_id(values[:stack_job_id])
-      end
-
-      def initialize(action_type)
+      # Create new Request
+      #
+      # @param action_type [String] action to run, use one of Terraform::Runner::ActionType::<constant>
+      # @param options     [Hash]   key/values pairs
+      def initialize(action_type, options)
         @action_type = action_type
-        @request_arguments = {}
+        @options = options
       end
 
       def build_json_post_arguments
-        case @action_type
-        when ActionType::CREATE
-          @request_arguments[:name] ||= random_stack_name
-          @request_arguments[:cloud_providers] ||= []
-          @request_arguments[:parameters] ||= []
-        when ActionType::UPDATE, ActionType::DELETE
-          @request_arguments[:cloud_providers] ||= []
-          @request_arguments[:parameters] ||= []
-        end
         validate
-        json_post_arguments
+        json_post_arguments(build_arguments)
       end
 
       def validate
         case @action_type
         when ActionType::CREATE, ActionType::TEMPLATE_VARIABLES
           # 'templateZipFile' is added, if 'template_path' is set
-          raise "'template_path' is required for #{@action_type}" unless @request_arguments.key?(:templateZipFile)
+          raise "'template_path' is required for #{@action_type}" unless option?(:template_path)
         when ActionType::UPDATE, ActionType::DELETE
-          # 'templateZipFile' is added, if 'template_path' is set
-          raise "'stack_id' and 'template_path' are required for #{@action_type}" unless @request_arguments.key?(:templateZipFile) && @request_arguments.key?(:stack_id)
+          raise "'stack_id' and 'template_path' are required for #{@action_type}" unless option?(:template_path) && option?(:stack_id)
         when ActionType::CANCEL, ActionType::RETRIEVE
-          raise "'stack_id' is required for #{@action_type}" unless @request_arguments.key?(:stack_id)
+          raise "'stack_id' is required for #{@action_type}" unless option?(:stack_id)
         else
           raise "Invalid action_type: #{@action_type}"
         end
       end
 
-      def template_path(template_path)
-        @request_arguments[:templateZipFile] = encoded_zip_from_directory(template_path) if template_path.present?
-        self
-      end
-
-      def name(name)
-        @request_arguments[:name] = name if name.present?
-        self
-      end
-
-      def stack_id(stack_id)
-        @request_arguments[:stack_id] = stack_id if stack_id.present?
-        self
-      end
-
-      def stack_job_id(stack_job_id)
-        @request_arguments[:stack_job_id] = stack_job_id if stack_job_id.present?
-        self
-      end
-
-      def tenant_id(tenant_id)
-        @request_arguments[:tenant_id] = tenant_id if tenant_id.present?
-        self
-      end
-
-      def credentials(credentials)
-        @request_arguments[:cloud_providers] = provider_connection_parameters(credentials) if credentials.present?
-        self
-      end
-
-      def input_vars(input_vars, input_vars_type_constraints = {})
-        if !input_vars.nil?
-          @request_arguments[:parameters] =
-            ApiParams.to_normalized_cam_parameters(input_vars, input_vars_type_constraints)
-        end
-        self
-      end
-
-      def tags(tags)
-        @request_arguments[:tags] = tags if tags.present?
-        self
-      end
-
-      def env_vars(env_vars)
-        @request_arguments[:env_vars] = env_vars if env_vars.present?
-        self
-      end
-
       private
 
-      def json_post_arguments
-        return JSON.generate(@request_arguments), "Content-Type" => "application/json".freeze
+      def option?(option_name)
+        @options.key?(option_name) && !@options[option_name].nil?
+      end
+
+      def build_arguments
+        arguments = {}
+        arguments[:name] = @options[:name] if option?(:name)
+        arguments[:stack_id] = @options[:stack_id] if option?(:stack_id)
+        arguments[:stack_job_id] = @options[:stack_job_id] if option?(:stack_job_id)
+        arguments[:tenant_id] = @options[:tenant_id] if option?(:tenant_id)
+        arguments[:tags] = @options[:tags] if option?(:tags)
+        arguments[:env_vars] = @options[:env_vars] if option?(:env_vars)
+
+        if option?(:credentials)
+          arguments[:cloud_providers] =
+            provider_connection_parameters(options[:credentials])
+        end
+        if option?(:template_path)
+          arguments[:templateZipFile] =
+            encoded_zip_from_directory(options[:template_path])
+        end
+        if option?(:input_vars)
+          arguments[:parameters] = ApiParams.to_normalized_cam_parameters(
+            @options[:input_vars], @options[:input_vars_type_constraints]
+          )
+        end
+
+        case @action_type
+        when ActionType::CREATE
+          arguments[:name] ||= random_stack_name
+          arguments[:cloud_providers] ||= []
+          arguments[:parameters] ||= []
+        when ActionType::UPDATE, ActionType::DELETE
+          arguments[:cloud_providers] ||= []
+          arguments[:parameters] ||= []
+        end
+
+        arguments
+      end
+
+      def json_post_arguments(request_arguments)
+        return JSON.generate(request_arguments), "Content-Type" => "application/json".freeze
       end
 
       def provider_connection_parameters(credentials)
