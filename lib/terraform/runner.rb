@@ -46,15 +46,13 @@ module Terraform
         $embedded_terraform_log.debug("Run #{action_type} for template: #{template_path}")
 
         response = run_terraform_runner_stack_api(
-          Request.new(action_type)
-            .template_path(template_path)
-            .credentials(options[:credentials])
-            .input_vars(options[:input_vars], options[:input_vars_type_constraints])
-            .tenant_id(stack_tenant_id)
-            .tags(options[:tags])
-            .env_vars(options[:env_vars])
-            .name(options[:name])
-            .stack_id(options[:stack_id])
+          Request.new(
+            action_type,
+            options.merge(
+              :template_path => template_path,
+              :tenant_id     => stack_tenant_id
+            )
+          )
         )
 
         Terraform::Runner::ResponseAsync.new(response.stack_id, response.stack_job_id)
@@ -68,9 +66,14 @@ module Terraform
       # @return [Terraform::Runner::Response] Response object with result of terraform run
       def stop_async(stack_id, stack_job_id = nil)
         run_terraform_runner_stack_api(
-          Request.new(ActionType::CANCEL)
-            .stack_id(stack_id)
-            .stack_job_id(stack_job_id)
+          Request.new(
+            ActionType::CANCEL,
+            {
+              :stack_id     => stack_id,
+              :stack_job_id => stack_job_id,
+              :tenant_id    => stack_tenant_id
+            }
+          )
         )
       end
 
@@ -85,9 +88,14 @@ module Terraform
       # @return [Terraform::Runner::Response] Response object with result of terraform run
       def retrieve_stack(stack_id, stack_job_id = nil)
         run_terraform_runner_stack_api(
-          Request.new(ActionType::RETRIEVE)
-            .stack_id(stack_id)
-            .stack_job_id(stack_job_id)
+          Request.new(
+            ActionType::RETRIEVE,
+            {
+              :stack_id     => stack_id,
+              :stack_job_id => stack_job_id,
+              :tenant_id    => stack_tenant_id
+            }
+          )
         )
       end
 
@@ -100,7 +108,7 @@ module Terraform
       # @return Response(body) object of terraform-runner api/template/variables,
       #         - the response object had template_input_params, template_output_params and terraform_version
       def parse_template_variables(template_path)
-        request = Request.new(ActionType::TEMPLATE_VARIABLES).template_path(template_path)
+        request = Request.new(ActionType::TEMPLATE_VARIABLES, {:template_path => template_path})
         action_endpoint = ActionType.action_endpoint(ActionType::TEMPLATE_VARIABLES)
 
         http_response = terraform_runner_client.post(
