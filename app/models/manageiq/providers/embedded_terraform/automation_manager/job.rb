@@ -86,7 +86,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
   end
 
   def success?
-    stack_response&.response&.status == "SUCCESS"
+    stack_response&.response&.success?
   end
 
   def error_message

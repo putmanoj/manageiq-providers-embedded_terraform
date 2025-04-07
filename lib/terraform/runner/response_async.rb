@@ -15,12 +15,12 @@ module Terraform
 
       # @return [Boolean] true if the terraform stack job is still running, false when it's finished
       def running?
-        return false if @response && completed?(@response.status)
+        return false if @response&.complete?
 
         # re-fetch response
         refresh_response
 
-        !completed?(@response.status)
+        !@response&.complete?
       end
 
       # Stops the running Terraform job
@@ -53,17 +53,6 @@ module Terraform
         end
 
         @response
-      end
-
-      private
-
-      def completed?(status)
-        case status.to_s.upcase
-        when "SUCCESS", "FAILED", "CANCELLED"
-          true
-        else
-          false
-        end
       end
     end
   end

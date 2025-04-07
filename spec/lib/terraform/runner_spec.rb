@@ -135,7 +135,7 @@ RSpec.describe(Terraform::Runner) do
                           :body   => @hello_world_retrieve_create_response.to_json
                         )
 
-        retrieve_update_stub = stub_request(:post, "https://1.2.3.4:7000/api/stack/retrieve")
+        retrieve_update_stub = stub_request(:post, "#{terraform_runner_url}/api/stack/retrieve")
                                .with(
                                  :body => hash_including({
                                                            :stack_id     => @hello_world_retrieve_update_response['stack_id'],
@@ -152,9 +152,12 @@ RSpec.describe(Terraform::Runner) do
         async_response = Terraform::Runner::ResponseAsync.new(
           @hello_world_create_response['stack_id']
         )
+
+        expect(async_response.running?).to be false
         response = async_response.response
 
-        expect(response.status).to eq('SUCCESS')
+        expect(response.complete?).to be true
+        expect(response.success?).to be true
         expect(response.message).to include('greeting = "Hello World"')
         expect(response.stack_id).to eq(@hello_world_retrieve_create_response['stack_id'])
         expect(response.stack_job_id).to eq(@hello_world_retrieve_create_response['stack_job_id'])
@@ -170,16 +173,20 @@ RSpec.describe(Terraform::Runner) do
           @hello_world_update_response['stack_id'],
           @hello_world_update_response['stack_job_id']
         )
+
+        expect(async_response.running?).to be false
         response = async_response.response
 
-        expect(retrieve_update_stub).to(have_been_requested.times(1))
         expect(response.stack_id).to eq(@hello_world_update_response['stack_id'])
         expect(response.stack_job_id).to eq(@hello_world_update_response['stack_job_id'])
         expect(response.action).to eq('APPLY')
         expect(response.stack_name).to eq(@hello_world_update_response['stack_name'])
 
-        expect(response.status).to eq('SUCCESS')
+        expect(response.complete?).to be true
+        expect(response.success?).to be true
         expect(response.message).to include('Apply complete! Resources: 1 added, 0 changed, 1 destroyed.')
+
+        expect(retrieve_update_stub).to(have_been_requested.times(1))
       end
     end
 

@@ -48,6 +48,14 @@ module Terraform
         @stack_job_start_time = data['stack_job_start_time']
         @stack_job_end_time   = data['stack_job_end_time']
       end
+
+      def complete?
+        Terraform::Runner::ResponseStackStatus.complete?(@status)
+      end
+
+      def success?
+        Terraform::Runner::ResponseStackStatus.success?(@status)
+      end
     end
   end
 end
