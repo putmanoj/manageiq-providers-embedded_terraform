@@ -128,7 +128,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
     action                 = options[:action]
     terraform_stack_id     = options[:terraform_stack_id]
     terraform_stack_job_id = options[:terraform_stack_job_id]
-    $embedded_terraform_log.info("ResponseAsync for action:#{action}, stack_id:#{terraform_stack_id}, stack_job_id:#{terraform_stack_job_id}")
+    $embedded_terraform_log.debug("ResponseAsync for action:#{action}, stack_id:#{terraform_stack_id}, stack_job_id:#{terraform_stack_job_id}")
 
     return if terraform_stack_id.nil?
 
@@ -184,8 +184,10 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
       Terraform::Runner::ActionType::UPDATE
     when ResourceAction::RETIREMENT
       Terraform::Runner::ActionType::DELETE
-    else
+    when ResoureAction::PROVISION
       Terraform::Runner::ActionType::CREATE
+    else
+      raise "Invalid resource_action type #{resource_action}"
     end
   end
 end

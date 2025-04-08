@@ -48,9 +48,7 @@ module Terraform
       # @return [Terraform::Runner::Response] Response object with all details about the Terraform run, or nil
       #         if the Terraform is still running
       def response
-        if running?
-          $embedded_terraform_log.debug("terraform-runner job [#{@stack_id}(#{@stack_job_id})] is running ...")
-        end
+        $embedded_terraform_log.debug("terraform-runner job [#{@stack_id}(#{@stack_job_id})] is running ...") if running?
 
         @response
       end
