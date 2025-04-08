@@ -17,7 +17,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationSc
 
       templates = find_templates_in_git_repo
       templates.each do |template_path, value|
-        _log.info("Template: #{template_path} => #{value.to_json}")
+        $embedded_terraform_log.info("Template: #{template_path} => #{value.to_json}")
 
         found = current.delete(template_path) || self.class.module_parent::Template.new(:configuration_script_source_id => id)
         attrs = {
@@ -106,7 +106,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationSc
 
     template_dirs
   rescue => error
-    _log.error("Failing scaning for terraform templates in the git repo: #{error}")
+    $embedded_terraform_log.error("Failing scaning for terraform templates in the git repo: #{error}")
     raise
   end
 

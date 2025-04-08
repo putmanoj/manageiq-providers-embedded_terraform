@@ -26,27 +26,31 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
     input_vars    = options.dig(:input_vars, :extra_vars) || {}
     action        = options[:action]
 
-    case action
-    when ResourceAction::RETIREMENT
-      Terraform::Runner.delete_stack(
-        options[:terraform_stack_id],
-        template_path,
-        :input_vars                  => decrypt_vars(input_vars),
-        :input_vars_type_constraints => input_vars_type_constraints,
-        :credentials                 => credentials,
-        :env_vars                    => options[:env_vars]
+    runner_options = {
+      :input_vars                  => decrypt_vars(input_vars),
+      :input_vars_type_constraints => input_vars_type_constraints,
+      :credentials                 => credentials,
+      :env_vars                    => options[:env_vars]
+    }
+
+    # required for ResourceAction::RECONFIGURE, ResourceAction::RETIREMENT
+    unless action == ResourceAction::PROVISION
+      runner_options = runner_options.merge(
+        :stack_id => options[:terraform_stack_id]
       )
-    else
-      response = Terraform::Runner.create_stack(
-        template_path,
-        :input_vars                  => decrypt_vars(input_vars),
-        :input_vars_type_constraints => input_vars_type_constraints,
-        :credentials                 => credentials,
-        :env_vars                    => options[:env_vars]
-      )
-      options[:terraform_stack_id] = response.stack_id
-      save!
     end
+
+    response = Terraform::Runner.run(
+      terraform_runner_action_type(action),
+      template_path,
+      runner_options
+    )
+
+    # save stack_id from the created stack
+    options[:terraform_stack_id] = response.stack_id
+    # and we need terraform_stack_job_id especially, when running Reconfigure action
+    options[:terraform_stack_job_id] = response.stack_job_id
+    save!
 
     queue_poll_runner
   end
@@ -64,7 +68,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
 
     return queue_signal(:finish, message, status) if success?
 
-    _log.error("Failed to run template: [#{error_message}]")
+    $embedded_terraform_log.error("Failed to run template: [#{error_message}]")
 
     abort_job("Failed to run template", "error")
   end
@@ -82,7 +86,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
   end
 
   def success?
-    stack_response&.response&.status == "SUCCESS"
+    stack_response&.response&.success?
   end
 
   def error_message
@@ -121,9 +125,14 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
   end
 
   def stack_response
-    return if options[:terraform_stack_id].nil?
+    action                 = options[:action]
+    terraform_stack_id     = options[:terraform_stack_id]
+    terraform_stack_job_id = options[:terraform_stack_job_id]
+    $embedded_terraform_log.debug("ResponseAsync for action:#{action}, stack_id:#{terraform_stack_id}, stack_job_id:#{terraform_stack_job_id}")
 
-    @stack_response ||= Terraform::Runner::ResponseAsync.new(options[:terraform_stack_id])
+    return if terraform_stack_id.nil?
+
+    @stack_response ||= Terraform::Runner::ResponseAsync.new(terraform_stack_id, terraform_stack_job_id)
   end
 
   def decrypt_vars(input_vars)
@@ -142,7 +151,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
     options[:git_checkout_tempdir] = Dir.mktmpdir("embedded-terraform-runner-git")
     save!
 
-    _log.info("Checking out git repository to #{options[:git_checkout_tempdir].inspect}...")
+    $embedded_terraform_log.info("Checking out git repository to #{options[:git_checkout_tempdir].inspect}...")
     configuration_script_source.checkout_git_repository(options[:git_checkout_tempdir])
   rescue MiqException::MiqUnreachableError => err
     miq_task.job.timeout!
@@ -152,7 +161,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
   def cleanup_git_repository
     return unless options[:git_checkout_tempdir]
 
-    _log.info("Cleaning up git repository checkout at #{options[:git_checkout_tempdir].inspect}...")
+    $embedded_terraform_log.info("Cleaning up git repository checkout at #{options[:git_checkout_tempdir].inspect}...")
     FileUtils.rm_rf(options[:git_checkout_tempdir])
   rescue Errno::ENOENT
     nil
@@ -165,7 +174,20 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
     payload = JSON.parse(template.payload)
     (payload['input_vars'] || []).index_by { |v| v['name'] }
   rescue => error
-    _log.error("Failure in parsing payload for template/#{template.id}, caused by #{error.message}")
+    $embedded_terraform_log.error("Failure in parsing payload for template/#{template.id}, caused by #{error.message}")
     {}
+  end
+
+  def terraform_runner_action_type(resource_action)
+    case resource_action
+    when ResourceAction::RECONFIGURE
+      Terraform::Runner::ActionType::UPDATE
+    when ResourceAction::RETIREMENT
+      Terraform::Runner::ActionType::DELETE
+    when ResoureAction::PROVISION
+      Terraform::Runner::ActionType::CREATE
+    else
+      raise "Invalid resource_action type #{resource_action}"
+    end
   end
 end

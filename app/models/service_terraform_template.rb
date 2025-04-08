@@ -15,8 +15,8 @@ class ServiceTerraformTemplate < ServiceGeneric
   # A chance for taking options from automate script to override options from a service dialog
   def preprocess(action, add_options = {})
     if add_options.present?
-      _log.info("Override with new options:")
-      $log.log_hashes(add_options)
+      $embedded_terraform_log.info("Override with new options:")
+      $embedded_terraform_log.log_hashes(add_options)
     end
 
     save_job_options(action, add_options)
