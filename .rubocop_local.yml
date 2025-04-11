@@ -1,0 +1,3 @@
+Style/GlobalVars:
+  AllowedVariables:
+  - $embedded_terraform_log
