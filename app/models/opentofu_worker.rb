@@ -38,12 +38,12 @@ class OpentofuWorker < MiqWorker
   end
 
   def add_liveness_probe(container_definition)
-    container_definition[:livenessProbe] = container_definition[:livenessProbe].except(:exec).merge(:httpGet => {:path => "/api/v1/ready", :port => SERVICE_PORT, :scheme => "HTTPS"})
+    container_definition[:livenessProbe] = container_definition[:livenessProbe].except(:exec).merge(:httpGet => {:path => "/live", :port => SERVICE_PORT, :scheme => "HTTPS"})
   end
 
   def add_readiness_probe(container_definition)
     container_definition[:readinessProbe] = {
-      :httpGet             => {:path => "/api/v1/ready", :port => SERVICE_PORT, :scheme => "HTTPS"},
+      :httpGet             => {:path => "/ready", :port => SERVICE_PORT, :scheme => "HTTPS"},
       :initialDelaySeconds => 60,
       :timeoutSeconds      => 3
     }
