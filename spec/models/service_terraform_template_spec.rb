@@ -1,6 +1,46 @@
 RSpec.describe ServiceTerraformTemplate do
   let(:terraform_stack_id) { "000-000-000-000" }
 
+  let(:terraform_template) { FactoryBot.create(:terraform_template) }
+
+  let(:service_options) do
+    {
+      :config_info => {
+        :provision   => {
+          :repository_id                   => 1,
+          :execution_ttl                   => "",
+          :log_output                      => "on_error",
+          :verbosity                       => "0",
+          :extra_vars                      => {},
+          :configuration_script_payload_id => terraform_template.id,
+          :dialog_id                       => 123,
+          :fqname                          => ServiceTemplateTerraformTemplate.default_provisioning_entry_point
+        },
+        :reconfigure => {
+          :repository_id                   => 1,
+          :execution_ttl                   => "",
+          :log_output                      => "on_error",
+          :verbosity                       => "0",
+          :extra_vars                      => {},
+          :configuration_script_payload_id => terraform_template.id,
+          :dialog_id                       => 123,
+          :fqname                          => ServiceTemplateTerraformTemplate.default_reconfiguration_entry_point
+        },
+        :retirement  => {
+          :repository_id                   => 1,
+          :execution_ttl                   => "",
+          :log_output                      => "on_error",
+          :verbosity                       => "0",
+          :extra_vars                      => {},
+          :configuration_script_payload_id => terraform_template.id,
+          :dialog_id                       => 123,
+          :fqname                          => ServiceTemplateTerraformTemplate.default_retirement_entry_point
+        }
+      },
+      :dialog      => {"dialog_name" => "World"},
+    }
+  end
+
   describe "#stack" do
     let!(:service) do
       FactoryBot.create(:service_terraform_template).tap do |s|
@@ -23,7 +63,7 @@ RSpec.describe ServiceTerraformTemplate do
 
   describe "#preprocess" do
     context "with ResourceAction::PROVISION" do
-      let!(:service) { FactoryBot.create(:service_terraform_template) }
+      let!(:service) { FactoryBot.create(:service_terraform_template, :options => service_options) }
 
       it "save job_options for Provision action" do
         service.preprocess(ResourceAction::PROVISION, {})
@@ -42,8 +82,19 @@ RSpec.describe ServiceTerraformTemplate do
 
     context "with ResourceAction::RECONFIGURE" do
       let!(:service) do
-        FactoryBot.create(:service_terraform_template).tap do |s|
+        FactoryBot.create(:service_terraform_template, :options => service_options).tap do |s|
           s.add_resource!(stack, :name => ResourceAction::PROVISION)
+          s.options.store(
+            :provision_job_options, {"execution_ttl"          => "",
+                                     "extra_vars"             => {},
+                                     "verbosity"              => "0",
+                                     "input_vars"             => {
+                                       "name" => "World"
+                                     },
+                                     "credentials"            => [],
+                                     "terraform_stack_id"     => terraform_stack_id,
+                                     "orchestration_stack_id" => stack.id}
+          )
         end
       end
 
@@ -61,20 +112,6 @@ RSpec.describe ServiceTerraformTemplate do
             }
           }
         end
-      end
-
-      before do
-        service.options.store(
-          :provision_job_options, {"execution_ttl"          => "",
-                                   "extra_vars"             => {},
-                                   "verbosity"              => "0",
-                                   "input_vars"             => {
-                                     "name" => "World"
-                                   },
-                                   "credentials"            => [],
-                                   "terraform_stack_id"     => terraform_stack_id,
-                                   "orchestration_stack_id" => stack.id}
-        )
       end
 
       let(:update_opts) do
@@ -105,7 +142,7 @@ RSpec.describe ServiceTerraformTemplate do
 
     context "with ResourceAction::RETIREMENT, when provisioned & reconfigured" do
       let!(:service) do
-        FactoryBot.create(:service_terraform_template).tap do |s|
+        FactoryBot.create(:service_terraform_template, :options => service_options).tap do |s|
           s.add_resource!(stack1, :name => ResourceAction::PROVISION)
           s.add_resource!(stack2, :name => ResourceAction::RECONFIGURE)
 
@@ -184,7 +221,7 @@ RSpec.describe ServiceTerraformTemplate do
 
     context "with ResourceAction::RETIREMENT, when provisioned but not reconfigured" do
       let!(:service) do
-        FactoryBot.create(:service_terraform_template).tap do |s|
+        FactoryBot.create(:service_terraform_template, :options => service_options).tap do |s|
           s.add_resource!(stack, :name => ResourceAction::PROVISION)
           s.options[:provision_job_options] = {
             :execution_ttl          => "",
@@ -354,7 +391,7 @@ RSpec.describe ServiceTerraformTemplate do
 
   describe "#postprocess" do
     context "with ResourceAction::PROVISION" do
-      let!(:service) { FactoryBot.create(:service_terraform_template) }
+      let!(:service) { FactoryBot.create(:service_terraform_template, :options => service_options) }
 
       it "service dialog options for Provision action" do
         service.postprocess(ResourceAction::PROVISION)

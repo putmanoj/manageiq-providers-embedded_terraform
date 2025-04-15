@@ -1,5 +1,5 @@
 class ServiceTemplateTerraformTemplate < ServiceTemplate
-  def self.default_provisioning_entry_point(_service_type)
+  def self.default_provisioning_entry_point(_service_type = nil)
     '/Service/Generic/StateMachines/GenericLifecycle/provision'
   end
 
