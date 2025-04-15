@@ -211,13 +211,13 @@ class ServiceTerraformTemplate < ServiceGeneric
 
   def copy_terraform_stack_id_and_input_vars_from_job_options(action)
     action_job = job(action)
-    if action_job.present? && action_job.options.present?
-      job_options = {}
-      job_options[:terraform_stack_id] = action_job.options[:terraform_stack_id] if action_job.options.key?(:terraform_stack_id)
-      job_options[:extra_vars] = action_job.options.dig(:input_vars, :extra_vars).deep_dup
-      job_options[:input_vars] = action_job.options.dig(:input_vars, :input_vars).deep_dup
-      job_options
-    end
+    return if action_job&.options.blank?
+
+    {
+      :terraform_stack_id => action_job.options[:terraform_stack_id],
+      :extra_vars         => action_job.options.dig(:input_vars, :extra_vars).deep_dup,
+      :input_vars         => action_job.options.dig(:input_vars, :input_vars).deep_dup
+    }
   end
 
   def update_service_dialog_options(params)
