@@ -101,11 +101,13 @@ class ServiceTerraformTemplate < ServiceGeneric
     end
 
     job_options = options[job_option_key(action)]
-    orchestration_stack_id = job_options[:orchestration_stack_id]
-    $embedded_terraform_log.debug("find OrchestrationStack by resource_id:#{orchestration_stack_id} for #{action}")
+    unless job_options.nil?
+      orchestration_stack_id = job_options[:orchestration_stack_id]
+      $embedded_terraform_log.debug("find OrchestrationStack by resource_id:#{orchestration_stack_id} for #{action}")
 
-    # We query also by :resource_id because Reconfigure action could have run multiple times, so there can be multiple OrchestrationStack(Job)s.
-    service_resources.find_by(:resource_id => orchestration_stack_id, :name => action, :resource_type => 'OrchestrationStack').try(:resource)
+      # We query also by :resource_id because Reconfigure action could have run multiple times, so there can be multiple OrchestrationStack(Job)s.
+      service_resources.find_by(:resource_id => orchestration_stack_id, :name => action, :resource_type => 'OrchestrationStack').try(:resource)
+    end
   end
 
   def refresh(action)
@@ -148,9 +150,10 @@ class ServiceTerraformTemplate < ServiceGeneric
       # so will use input-vars/values from Provision/Reconfiguration.
       # Copy input-vars from Provision & Reconfiguration (terraform apply),
       prov_job_options = copy_terraform_stack_id_and_input_vars_from_job_options(ResourceAction::PROVISION)
-      reconfigure_job_options = copy_terraform_stack_id_and_input_vars_from_job_options(ResourceAction::RECONFIGURE)
       job_options.deep_merge!(prov_job_options)
-      job_options.deep_merge!(reconfigure_job_options)
+
+      reconfigure_job_options = copy_terraform_stack_id_and_input_vars_from_job_options(ResourceAction::RECONFIGURE)
+      job_options.deep_merge!(reconfigure_job_options) unless reconfigure_job_options.nil?
     when ResourceAction::RECONFIGURE
       # We need the stack_id from Provision, then we override with update_options from Reconfiguration request
       prov_job_options = copy_terraform_stack_id_and_input_vars_from_job_options(ResourceAction::PROVISION)
@@ -214,8 +217,6 @@ class ServiceTerraformTemplate < ServiceGeneric
       job_options[:extra_vars] = action_job.options.dig(:input_vars, :extra_vars).deep_dup
       job_options[:input_vars] = action_job.options.dig(:input_vars, :input_vars).deep_dup
       job_options
-    else
-      {}
     end
   end
 
