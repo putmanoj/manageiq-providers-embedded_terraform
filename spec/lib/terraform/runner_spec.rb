@@ -24,7 +24,7 @@ RSpec.describe(Terraform::Runner) do
 
   describe "is .available" do
     before do
-      stub_request(:get, "#{terraform_runner_url}/live")
+      stub_request(:get, "#{terraform_runner_url}/ready")
         .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
     end
 

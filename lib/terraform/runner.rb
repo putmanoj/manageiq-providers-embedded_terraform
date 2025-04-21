@@ -9,7 +9,7 @@ module Terraform
       def available?
         return @available if defined?(@available)
 
-        response = terraform_runner_client.get('live')
+        response = terraform_runner_client.get('ready')
         @available = response.status == 200 && JSON.parse(response.body)['status'] == 'UP'
       rescue
         @available = false
