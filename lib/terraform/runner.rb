@@ -170,7 +170,10 @@ module Terraform
         end
 
         $embedded_terraform_log.debug("==== http_response.body: \n #{http_response.body}")
-        Terraform::Runner::Response.parsed_response(http_response)
+
+        Terraform::Runner::Response.parsed_response(http_response).tap do |resp|
+          $embedded_terraform_log.info("terraform-runnner[#{action_endpoint}] stack/#{resp.stack_id}/#{resp.stack_job_id}")
+        end
       end
 
       def jwt_token

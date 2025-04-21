@@ -23,7 +23,6 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
   def execute
     template_path = File.join(options[:git_checkout_tempdir], template_relative_path)
     credentials   = Authentication.where(:id => options[:credentials])
-    input_vars    = options.dig(:input_vars, :extra_vars) || {}
     action        = options[:action]
 
     runner_options = {
@@ -128,7 +127,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
     action                 = options[:action]
     terraform_stack_id     = options[:terraform_stack_id]
     terraform_stack_job_id = options[:terraform_stack_job_id]
-    $embedded_terraform_log.debug("ResponseAsync for action:#{action}, stack_id:#{terraform_stack_id}, stack_job_id:#{terraform_stack_job_id}")
+    $embedded_terraform_log.debug("ResponseAsync stack/#{terraform_stack_id}/#{terraform_stack_job_id} for #{action}")
 
     return if terraform_stack_id.nil?
 
@@ -178,13 +177,20 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
     {}
   end
 
+  def input_vars
+    extra_vars = options.dig(:input_vars, :extra_vars) || {}
+    input_vars = options.dig(:input_vars, :input_vars) || {}
+    # merge & over extra_vars with input_vars
+    extra_vars.deep_merge!(input_vars)
+  end
+
   def terraform_runner_action_type(resource_action)
     case resource_action
     when ResourceAction::RECONFIGURE
       Terraform::Runner::ActionType::UPDATE
     when ResourceAction::RETIREMENT
       Terraform::Runner::ActionType::DELETE
-    when ResoureAction::PROVISION
+    when ResourceAction::PROVISION
       Terraform::Runner::ActionType::CREATE
     else
       raise "Invalid resource_action type #{resource_action}"
