@@ -94,20 +94,12 @@ class ServiceTerraformTemplate < ServiceGeneric
   end
 
   def stack(action)
-    if !options[job_option_key(action)]&.key?(:orchestration_stack_id)
-      # we need to reload, to pull updates to options from db,
-      # because the stack_id was saved in service instance in a queue job
-      reload
-    end
-
-    job_options = options[job_option_key(action)]
-    unless job_options.nil?
-      orchestration_stack_id = job_options[:orchestration_stack_id]
-      $embedded_terraform_log.debug("find OrchestrationStack by resource_id:#{orchestration_stack_id} for #{action}")
-
-      # We query also by :resource_id because Reconfigure action could have run multiple times, so there can be multiple OrchestrationStack(Job)s.
-      service_resources.find_by(:resource_id => orchestration_stack_id, :name => action, :resource_type => 'OrchestrationStack').try(:resource)
-    end
+    # we need to reload, to pull updates to options from db, because the stack_id was saved in service instance in a queue job
+    reload unless options[job_option_key(action)]&.key?(:orchestration_stack_id)
+    orchestration_stack_id = options.dig(job_option_key(action), :orchestration_stack_id)
+    $embedded_terraform_log.debug("find OrchestrationStack by resource_id:#{orchestration_stack_id} for #{action}")
+    # We query also by :resource_id, because in case of Reconfigure action, it could have run multiple times, so there can be multiple OrchestrationStack(Job)s.
+    service_resources.find_by(:resource_id => orchestration_stack_id, :name => action, :resource_type => 'OrchestrationStack').try(:resource)
   end
 
   def refresh(action)
