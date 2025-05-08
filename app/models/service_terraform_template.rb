@@ -23,7 +23,10 @@ class ServiceTerraformTemplate < ServiceGeneric
     save_job_options(action, update_options)
   end
 
-  def execute(action)
+  # this is essentially launch_terraform_template_queue
+  #
+  # @returns [Numeric] task_id (passed into wait_for_taskid)
+  def execute_async(action)
     $embedded_terraform_log.debug("Service(#{id}).execute(#{action}) starts")
     task_opts = {
       :action => "Launching Terraform Template",
@@ -38,8 +41,11 @@ class ServiceTerraformTemplate < ServiceGeneric
       :role        => "embedded_terraform",
       :zone        => my_zone
     }
+    MiqTask.generic_action_with_callback(task_opts, queue_opts)
+  end
 
-    task_id = MiqTask.generic_action_with_callback(task_opts, queue_opts)
+  def execute(action)
+    task_id = execute_async(action)
     task    = MiqTask.wait_for_taskid(task_id)
 
     $embedded_terraform_log.debug("Service(#{id}).execute(#{action}) ends, with task/#{task_id}:#{task}")

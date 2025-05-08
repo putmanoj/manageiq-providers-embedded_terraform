@@ -326,6 +326,62 @@ RSpec.describe ServiceTerraformTemplate do
     end
   end
 
+  describe "#execute_async" do
+    [
+      ResourceAction::PROVISION,
+      ResourceAction::RECONFIGURE,
+      ResourceAction::RETIREMENT
+    ].each do |action|
+      describe "with #{action} action" do
+        let!(:service) do
+          FactoryBot.create(:service_terraform_template).tap do |s|
+            s.add_resource!(stack1, :name => ResourceAction::PROVISION)
+            case action
+            when ResourceAction::RECONFIGURE
+              s.add_resource!(stack2, :name => ResourceAction::RECONFIGURE)
+            when ResourceAction::RETIREMENT
+              s.add_resource!(stack2, :name => ResourceAction::RECONFIGURE)
+              s.add_resource!(stack3, :name => ResourceAction::RETIREMENT)
+            end
+          end
+        end
+
+        let(:stack1) { FactoryBot.create(:terraform_stack, :miq_task => miq_task) }
+        let(:stack2) { FactoryBot.create(:terraform_stack, :miq_task => miq_task) }
+        let(:stack3) { FactoryBot.create(:terraform_stack, :miq_task => miq_task) }
+
+        let(:task_opts) do
+          {
+            :action => "Launching Terraform Template",
+            :userid => "system"
+          }
+        end
+
+        let(:queue_opts) do
+          {
+            :args        => [action],
+            :class_name  => described_class.name,
+            :instance_id => service.id,
+            :method_name => "launch_terraform_template",
+            :role        => "embedded_terraform",
+            :zone        => service.my_zone
+          }
+        end
+
+        context "creates a task" do
+          let(:miq_task) { FactoryBot.create(:miq_task, :state => "Running", :status => "Ok", :message => "process initiated") }
+
+          it "creates task" do
+            expect(MiqTask).to receive(:generic_action_with_callback).with(task_opts, queue_opts).and_return(miq_task.id)
+            expect(MiqTask).not_to receive(:wait_for_taskid)
+
+            expect(service.execute_async(action)).to eq(miq_task.id)
+          end
+        end
+      end
+    end
+  end
+
   describe "#check_completed" do
     [
       ResourceAction::PROVISION,
