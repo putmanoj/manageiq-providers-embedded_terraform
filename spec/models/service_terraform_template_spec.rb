@@ -11,7 +11,6 @@ RSpec.describe ServiceTerraformTemplate do
           :execution_ttl                   => "",
           :log_output                      => "on_error",
           :verbosity                       => "0",
-          :extra_vars                      => {},
           :configuration_script_payload_id => terraform_template.id,
           :dialog_id                       => 123,
           :fqname                          => ServiceTemplateTerraformTemplate.default_provisioning_entry_point
@@ -21,7 +20,6 @@ RSpec.describe ServiceTerraformTemplate do
           :execution_ttl                   => "",
           :log_output                      => "on_error",
           :verbosity                       => "0",
-          :extra_vars                      => {},
           :configuration_script_payload_id => terraform_template.id,
           :dialog_id                       => 123,
           :fqname                          => ServiceTemplateTerraformTemplate.default_reconfiguration_entry_point
@@ -31,7 +29,6 @@ RSpec.describe ServiceTerraformTemplate do
           :execution_ttl                   => "",
           :log_output                      => "on_error",
           :verbosity                       => "0",
-          :extra_vars                      => {},
           :configuration_script_payload_id => terraform_template.id,
           :dialog_id                       => 123,
           :fqname                          => ServiceTemplateTerraformTemplate.default_retirement_entry_point
@@ -70,7 +67,6 @@ RSpec.describe ServiceTerraformTemplate do
 
         expect(service.options[:provision_job_options]).to eq({
                                                                 "execution_ttl" => "",
-                                                                "extra_vars"    => {},
                                                                 "verbosity"     => "0",
                                                                 "input_vars"    => {
                                                                   "name" => "World"
@@ -86,7 +82,6 @@ RSpec.describe ServiceTerraformTemplate do
           s.add_resource!(stack, :name => ResourceAction::PROVISION)
           s.options.store(
             :provision_job_options, {"execution_ttl"          => "",
-                                     "extra_vars"             => {},
                                      "verbosity"              => "0",
                                      "input_vars"             => {
                                        "name" => "World"
@@ -105,7 +100,6 @@ RSpec.describe ServiceTerraformTemplate do
           j.options = {
             :terraform_stack_id => terraform_stack_id,
             :input_vars         => {
-              :extra_vars => {},
               :input_vars => {
                 "name" => "World"
               }
@@ -129,7 +123,6 @@ RSpec.describe ServiceTerraformTemplate do
 
         expect(service.options[:reconfigure_job_options]).to eq({
                                                                   "execution_ttl"      => "",
-                                                                  "extra_vars"         => {},
                                                                   "verbosity"          => "0",
                                                                   "input_vars"         => {
                                                                     "name" => "New World"
@@ -148,7 +141,6 @@ RSpec.describe ServiceTerraformTemplate do
 
           s.options[:provision_job_options] = {
             :execution_ttl          => "",
-            :extra_vars             => {},
             :verbosity              => "0",
             :input_vars             => {
               "name" => "World"
@@ -159,7 +151,6 @@ RSpec.describe ServiceTerraformTemplate do
           }
           s.options[:reconfigure_job_options] = {
             :execution_ttl          => "",
-            :extra_vars             => {},
             :verbosity              => "0",
             :input_vars             => {
               "name" => "New World"
@@ -178,7 +169,6 @@ RSpec.describe ServiceTerraformTemplate do
           j.options = {
             :terraform_stack_id => terraform_stack_id,
             :input_vars         => {
-              :extra_vars => {},
               :input_vars => {
                 "name" => "World"
               }
@@ -194,7 +184,6 @@ RSpec.describe ServiceTerraformTemplate do
           j.options = {
             :terraform_stack_id => terraform_stack_id,
             :input_vars         => {
-              :extra_vars => {},
               :input_vars => {
                 "name" => "New World"
               }
@@ -208,7 +197,7 @@ RSpec.describe ServiceTerraformTemplate do
 
         expect(service.options[:retirement_job_options]).to eq({
                                                                  "execution_ttl"      => "",
-                                                                 "extra_vars"         => {},
+
                                                                  "verbosity"          => "0",
                                                                  "input_vars"         => {
                                                                    "name" => "New World"
@@ -225,7 +214,6 @@ RSpec.describe ServiceTerraformTemplate do
           s.add_resource!(stack, :name => ResourceAction::PROVISION)
           s.options[:provision_job_options] = {
             :execution_ttl          => "",
-            :extra_vars             => {},
             :verbosity              => "0",
             :input_vars             => {
               "name" => "World"
@@ -244,7 +232,6 @@ RSpec.describe ServiceTerraformTemplate do
           j.options = {
             :terraform_stack_id => terraform_stack_id,
             :input_vars         => {
-              :extra_vars => {},
               :input_vars => {
                 "name" => "World"
               }
@@ -258,7 +245,6 @@ RSpec.describe ServiceTerraformTemplate do
 
         expect(service.options[:retirement_job_options]).to eq({
                                                                  "execution_ttl"      => "",
-                                                                 "extra_vars"         => {},
                                                                  "verbosity"          => "0",
                                                                  "input_vars"         => {
                                                                    "name" => "World"
@@ -464,7 +450,6 @@ RSpec.describe ServiceTerraformTemplate do
 
           s.options[:reconfigure_job_options] = {
             :execution_ttl          => "",
-            :extra_vars             => {},
             :verbosity              => "0",
             :input_vars             => {
               "name" => "New World"

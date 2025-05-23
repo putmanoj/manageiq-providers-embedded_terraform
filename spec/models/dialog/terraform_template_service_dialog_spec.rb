@@ -14,7 +14,7 @@ RSpec.describe Dialog::TerraformTemplateServiceDialog do
   describe "#create_dialog" do
     shared_examples_for "create_dialog with terraform template" do
       it "when has input vars" do
-        dialog = described_class.create_dialog(dialog_label, terraform_template, {})
+        dialog = described_class.create_dialog(dialog_label, terraform_template) # , {})
         expect(dialog).to have_attributes(:label => dialog_label, :buttons => "submit,cancel")
 
         group = assert_terraform_template_variables_tab(dialog)
@@ -46,78 +46,13 @@ RSpec.describe Dialog::TerraformTemplateServiceDialog do
       it_behaves_like "create_dialog with terraform template"
     end
 
-    context "with no terraform template input vars, but with extra vars" do
-      let(:dialog_label) { 'mydialog1' }
-      let(:extra_vars) do
-        {
-          'some_extra_var'  => {:default => 'blah'},
-          'other_extra_var' => {:default => {'name' => 'some_value'}},
-          'array_extra_var' => {:default => [{'name' => 'some_value'}]}
-        }
-      end
-      let(:terraform_template) { terraform_template_with_no_input_vars }
-
-      it "creates a dialog with extra variables" do
-        dialog = subject.create_dialog(dialog_label, terraform_template, extra_vars)
-        expect(dialog).to have_attributes(:label => dialog_label, :buttons => "submit,cancel")
-
-        group = assert_variables_tab(dialog)
-        assert_extra_variables_group(group)
-      end
-    end
-
     shared_examples_for "create_dialog with place-holder variable argument" do
       it "when no terraform template input vars and empty extra vars" do
-        dialog = described_class.create_dialog(dialog_label, terraform_template, extra_vars)
+        dialog = described_class.create_dialog(dialog_label, terraform_template)
         expect(dialog).to have_attributes(:label => dialog_label, :buttons => "submit,cancel")
 
         group = assert_variables_tab(dialog)
         assert_default_variables_group(group, dialog_label)
-      end
-    end
-
-    context "when empty terraform template input vars & empty extra vars" do
-      let(:dialog_label) { "mydialog2" }
-      let(:terraform_template) { terraform_template_with_no_input_vars }
-      let(:extra_vars) do
-        {}
-      end
-
-      it_behaves_like "create_dialog with place-holder variable argument"
-    end
-
-    context "when nil terraform template & nil extra vars" do
-      let(:dialog_label) { "mydialog3" }
-      let(:terraform_template) { nil }
-      let(:extra_vars) { nil }
-
-      it_behaves_like "create_dialog with place-holder variable argument"
-    end
-
-    context "with terraform template input vars and with extra vars" do
-      let(:dialog_label) { "mydialog4" }
-      let(:extra_vars) do
-        {
-          'some_extra_var'  => {:default => 'blah'},
-          'other_extra_var' => {:default => {'name' => 'some_value'}},
-          'array_extra_var' => {:default => [{'name' => 'some_value'}]}
-        }
-      end
-      let(:input_vars) do
-        require 'json'
-        payload = JSON.parse(payload_with_three_input_vars)
-        payload['input_vars']
-      end
-
-      it "creates multiple dialog-groups" do
-        dialog = subject.create_dialog(dialog_label, terraform_template_with_input_vars, extra_vars)
-        expect(dialog).to have_attributes(:label => dialog_label, :buttons => "submit,cancel")
-
-        group1 = assert_terraform_template_variables_tab(dialog, :group_size => 2)
-        assert_terraform_variables_group(group1, input_vars)
-
-        group2 = assert_variables_tab(dialog, :group_size => 2)
-        assert_extra_variables_group(group2)
       end
     end
 
@@ -126,13 +61,10 @@ RSpec.describe Dialog::TerraformTemplateServiceDialog do
       let(:input_vars) do
         [{"name" => "set_password", "label" => "set_password", "type" => "boolean", "description" => "Do you want to set the password ?", "required" => false, "secured" => false, "hidden" => false, "immutable" => false, "default" => true}]
       end
-      let(:extra_vars) do
-        {}
-      end
 
       it "create_dialog with checkbox field, when default value is true" do
         terraform_template = FactoryBot.create(:terraform_template, :payload => "{\"input_vars\": #{input_vars.to_json}}")
-        dialog = described_class.create_dialog(dialog_label, terraform_template, extra_vars)
+        dialog = described_class.create_dialog(dialog_label, terraform_template)
         expect(dialog).to have_attributes(:label => dialog_label, :buttons => "submit,cancel")
 
         group1 = assert_terraform_template_variables_tab(dialog, :group_size => 1)
@@ -144,7 +76,7 @@ RSpec.describe Dialog::TerraformTemplateServiceDialog do
         input_vars_copy[0]['default'] = "" # default attribute is empty
         terraform_template = FactoryBot.create(:terraform_template, :payload => "{\"input_vars\": #{input_vars_copy.to_json}}")
 
-        dialog = described_class.create_dialog(dialog_label, terraform_template, extra_vars)
+        dialog = described_class.create_dialog(dialog_label, terraform_template)
         expect(dialog).to have_attributes(:label => dialog_label, :buttons => "submit,cancel")
 
         group1 = assert_terraform_template_variables_tab(dialog, :group_size => 1)
@@ -156,7 +88,7 @@ RSpec.describe Dialog::TerraformTemplateServiceDialog do
         input_vars_copy[0].delete('default') # no default attribute
         terraform_template = FactoryBot.create(:terraform_template, :payload => "{\"input_vars\": #{input_vars_copy.to_json}}")
 
-        dialog = described_class.create_dialog(dialog_label, terraform_template, extra_vars)
+        dialog = described_class.create_dialog(dialog_label, terraform_template)
         expect(dialog).to have_attributes(:label => dialog_label, :buttons => "submit,cancel")
 
         group1 = assert_terraform_template_variables_tab(dialog, :group_size => 1)
@@ -184,7 +116,7 @@ RSpec.describe Dialog::TerraformTemplateServiceDialog do
           {:position => 3, :value => JSON.pretty_generate(input_vars[3]['default'])}
         ]
 
-        dialog = described_class.create_dialog(dialog_label, terraform_template, {})
+        dialog = described_class.create_dialog(dialog_label, terraform_template) # , {})
         expect(dialog).to have_attributes(:label => dialog_label, :buttons => "submit,cancel")
 
         group1 = assert_terraform_template_variables_tab(dialog, :group_size => 1)
@@ -207,7 +139,7 @@ RSpec.describe Dialog::TerraformTemplateServiceDialog do
             {:position => 1, :value => JSON.pretty_generate(input_vars[1]['default'])}
           ]
 
-          dialog = described_class.create_dialog(dialog_label, terraform_template, {})
+          dialog = described_class.create_dialog(dialog_label, terraform_template) # , {})
           expect(dialog).to have_attributes(:label => dialog_label, :buttons => "submit,cancel")
 
           group1 = assert_terraform_template_variables_tab(dialog, :group_size => 1)
@@ -231,7 +163,7 @@ RSpec.describe Dialog::TerraformTemplateServiceDialog do
             {:position => 1, :value => nil}
           ]
 
-          dialog = described_class.create_dialog(dialog_label, terraform_template, {})
+          dialog = described_class.create_dialog(dialog_label, terraform_template) # , {})
           expect(dialog).to have_attributes(:label => dialog_label, :buttons => "submit,cancel")
 
           group1 = assert_terraform_template_variables_tab(dialog, :group_size => 1)

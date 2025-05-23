@@ -5,7 +5,6 @@ class ServiceTerraformTemplate < ServiceGeneric
     credential_id
     execution_ttl
     input_vars
-    extra_vars
     verbosity
   ].freeze
 
@@ -54,8 +53,7 @@ class ServiceTerraformTemplate < ServiceGeneric
 
   def postprocess(action)
     $embedded_terraform_log.debug("Service(#{id}).postprocess(#{action}) starts")
-    case action
-    when ResourceAction::RECONFIGURE
+    if action == ResourceAction::RECONFIGURE
       # As we have reached here, so the action was successful.
       # Now we update the Service with dialog options from Reconfiguration
       $embedded_terraform_log.info("successfully reconfiguired, save reconfigure job options, to service dialog options")
@@ -118,6 +116,22 @@ class ServiceTerraformTemplate < ServiceGeneric
 
   private
 
+  def get_input_vars_from_job_options(job_options)
+    return {} if job_options.nil?
+
+    input_vars = job_options.fetch(:input_vars, {})
+
+    # Handle backward compatibility: nested :input_vars inside :input_vars
+    if input_vars.kind_of?(Hash) &&
+       input_vars.keys.size == 1 &&
+       input_vars.keys.first == :input_vars &&
+       input_vars[:input_vars].kind_of?(Hash)
+      input_vars = input_vars[:input_vars]
+    end
+
+    input_vars
+  end
+
   def job(action)
     stack(action)&.miq_task&.job
   end
@@ -137,10 +151,6 @@ class ServiceTerraformTemplate < ServiceGeneric
 
   def save_job_options(action, overrides)
     job_options = config_options(action)
-    # TODO: check extra_vars
-    job_options[:extra_vars].try(:transform_values!) do |val|
-      val.kind_of?(String) ? val : val[:default] # TODO: support Hash only
-    end
 
     case action
     when ResourceAction::RETIREMENT
@@ -179,25 +189,22 @@ class ServiceTerraformTemplate < ServiceGeneric
   # - Service::service => ##
   def parse_dialog_options_only(action_options)
     dialog_options = action_options[:dialog] || {}
-    params = {}
-    dialog_options.each do |attr, val|
+    params = dialog_options.each_with_object({}) do |(attr, val), obj|
       if attr.start_with?("dialog_")
         var_key = attr.sub(/^(password::)?dialog_/, '')
-        params[var_key] = val
+        obj[var_key] = val
       end
     end
-    params.blank? ? {} : {:input_vars => params}
+    {:input_vars => params}
   end
 
   def parse_dialog_options(action_options)
     dialog_options = action_options[:dialog] || {}
-
     params = dialog_options.each_with_object({}) do |(attr, val), obj|
       var_key = attr.sub(/^(password::)?dialog_/, '')
       obj[var_key] = val
     end
-
-    params.blank? ? {} : {:input_vars => params}
+    {:input_vars => params}
   end
 
   def translate_credentials!(options)
@@ -213,8 +220,7 @@ class ServiceTerraformTemplate < ServiceGeneric
 
     {
       :terraform_stack_id => action_job.options[:terraform_stack_id],
-      :extra_vars         => action_job.options.dig(:input_vars, :extra_vars).deep_dup,
-      :input_vars         => action_job.options.dig(:input_vars, :input_vars).deep_dup
+      :input_vars         => get_input_vars_from_job_options(action_job.options).deep_dup
     }
   end
 

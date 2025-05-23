@@ -15,7 +15,11 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
   end
   let(:state)       { "waiting_to_start" }
   let(:env_vars)    { {} }
-  let(:input_vars)  { {:extra_vars => {"name" => "stack123"}, :input_vars => {"name" => "stack123"}} }
+  let(:input_vars)  do
+    {
+      "name" => "stack123"
+    }
+  end
   let(:credentials) { [] }
   let(:terraform_stack_id) { '999-999-999-999' }
 
@@ -84,7 +88,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
       let(:action_type) { Terraform::Runner::ActionType::CREATE }
       let(:runner_options) do
         {
-          :input_vars                  => input_vars[:input_vars],
+          :input_vars                  => input_vars,
           :input_vars_type_constraints => {"name" => terraform_template_payload.dig(:input_vars, 0)},
           :credentials                 => [],
           :env_vars                    => {}
@@ -142,7 +146,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
         end
         let(:runner_options) do
           {
-            :input_vars                  => input_vars[:input_vars],
+            :input_vars                  => input_vars,
             :input_vars_type_constraints => {"name" => terraform_template_payload.dig(:input_vars, 0)},
             :credentials                 => [],
             :env_vars                    => {},
@@ -179,9 +183,6 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
           job.signal(signal.to_sym)
         end
       end
-    end
-
-    %w[start pre_execute execute poll_runner post_execute finish abort_job cancel error].each do |signal|
       shared_examples_for "doesn't allow #{signal} signal" do
         it signal.to_s do
           expect { job.signal(signal.to_sym) }.to raise_error(RuntimeError, /#{signal} is not permitted at state #{job.state}/)
