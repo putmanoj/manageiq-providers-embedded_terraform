@@ -40,7 +40,7 @@ class ServiceTemplateTerraformTemplate < ServiceTemplate
   end
 
   private_class_method def self.validate_config_info(config_info)
-    raise _("Must provide a configuration_script_payload_id") if !config_info.key?(:provision) || config_info[:provision][:configuration_script_payload_id].nil?
+    raise _("Must provide a configuration_script_payload_id") if config_info.dig(:provision, :configuration_script_payload_id).nil?
 
     config_info[:provision][:fqname] ||= default_provisioning_entry_point(SERVICE_TYPE_ATOMIC)
 
