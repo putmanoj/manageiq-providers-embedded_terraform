@@ -190,25 +190,22 @@ class ServiceTerraformTemplate < ServiceGeneric
   # - Service::service => ##
   def parse_dialog_options_only(action_options)
     dialog_options = action_options[:dialog] || {}
-    params = {}
-    dialog_options.each do |attr, val|
+    params = dialog_options.each_with_object({}) do |(attr, val), obj|
       if attr.start_with?("dialog_")
         var_key = attr.sub(/^(password::)?dialog_/, '')
-        params[var_key] = val
+        obj[var_key] = val
       end
     end
-    params.blank? ? {} : {:input_vars => params}
+    {:input_vars => params}
   end
 
   def parse_dialog_options(action_options)
     dialog_options = action_options[:dialog] || {}
-
     params = dialog_options.each_with_object({}) do |(attr, val), obj|
       var_key = attr.sub(/^(password::)?dialog_/, '')
       obj[var_key] = val
     end
-
-    params.blank? ? {} : {:input_vars => params}
+    {:input_vars => params}
   end
 
   def translate_credentials!(options)
