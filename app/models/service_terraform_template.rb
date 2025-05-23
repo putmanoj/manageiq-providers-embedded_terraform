@@ -5,7 +5,7 @@ class ServiceTerraformTemplate < ServiceGeneric
     credential_id
     execution_ttl
     input_vars
-    extra_vars
+    # extra_vars
     verbosity
   ].freeze
 
@@ -137,10 +137,11 @@ class ServiceTerraformTemplate < ServiceGeneric
 
   def save_job_options(action, overrides)
     job_options = config_options(action)
-    # TODO: check extra_vars
-    job_options[:extra_vars].try(:transform_values!) do |val|
-      val.kind_of?(String) ? val : val[:default] # TODO: support Hash only
-    end
+
+    # # TODO: check extra_vars
+    # job_options[:extra_vars].try(:transform_values!) do |val|
+    #   val.kind_of?(String) ? val : val[:default] # TODO: support Hash only
+    # end
 
     case action
     when ResourceAction::RETIREMENT
@@ -213,7 +214,7 @@ class ServiceTerraformTemplate < ServiceGeneric
 
     {
       :terraform_stack_id => action_job.options[:terraform_stack_id],
-      :extra_vars         => action_job.options.dig(:input_vars, :extra_vars).deep_dup,
+      # :extra_vars         => action_job.options.dig(:input_vars, :extra_vars).deep_dup,
       :input_vars         => action_job.options.dig(:input_vars, :input_vars).deep_dup
     }
   end

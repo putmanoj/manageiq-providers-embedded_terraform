@@ -15,7 +15,12 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
   end
   let(:state)       { "waiting_to_start" }
   let(:env_vars)    { {} }
-  let(:input_vars)  { {:extra_vars => {"name" => "stack123"}, :input_vars => {"name" => "stack123"}} }
+  let(:input_vars)  do
+    {
+      # :extra_vars => {"name" => "stack123"},
+      :input_vars => {"name" => "stack123"}
+    }
+  end
   let(:credentials) { [] }
   let(:terraform_stack_id) { '999-999-999-999' }
 

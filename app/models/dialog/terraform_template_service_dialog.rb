@@ -1,27 +1,24 @@
 class Dialog
   class TerraformTemplateServiceDialog
-    def self.create_dialog(label, terraform_template, extra_vars)
-      new.create_dialog(label, terraform_template, extra_vars)
+    # def self.create_dialog(label, terraform_template, extra_vars)
+    #   new.create_dialog(label, terraform_template, extra_vars)
+    # end
+
+    def self.create_dialog(label, terraform_template)
+      new.create_dialog(label, terraform_template)
     end
 
     # This dialog is to be used by a terraform template service item
-    def create_dialog(label, terraform_template, extra_vars)
+    # def create_dialog(label, terraform_template, extra_vars)
+    def create_dialog(label, terraform_template)
       Dialog.new(:label => label, :buttons => "submit,cancel").tap do |dialog|
         tab = dialog.dialog_tabs.build(:display => "edit", :label => "Basic Information", :position => 0)
         position = 0
-        if terraform_template.present? && add_template_variables_group(tab, position, terraform_template)
-          position += 1
-        end
-        if extra_vars.present?
-          add_variables_group(tab, position, extra_vars)
-          position += 1
-        end
+        add_template_variables_group(tab, position, terraform_template)
 
-        if position == 0
-          # if not template input vars & no extra_vars,
-          # then add single variable text box as place-holder
-          add_variables_group(tab, position, {:name => {:default => label}})
-        end
+        # if extra_vars.present?
+        #   add_variables_group(tab, position, extra_vars)
+        # end
 
         dialog.save!
       end
@@ -80,17 +77,17 @@ class Dialog
       end
     end
 
-    def add_variables_group(tab, position, extra_vars)
-      tab.dialog_groups.build(
-        :display  => "edit",
-        :label    => "Variables",
-        :position => position
-      ).tap do |dialog_group|
-        extra_vars.transform_values { |val| val[:default] }.each_with_index do |(key, value), index|
-          add_variable_field(key, value, dialog_group, index, key, key, false, false)
-        end
-      end
-    end
+    # def add_variables_group(tab, position, extra_vars)
+    #   tab.dialog_groups.build(
+    #     :display  => "edit",
+    #     :label    => "Variables",
+    #     :position => position
+    #   ).tap do |dialog_group|
+    #     extra_vars.transform_values { |val| val[:default] }.each_with_index do |(key, value), index|
+    #       add_variable_field(key, value, dialog_group, index, key, key, false, false)
+    #     end
+    #   end
+    # end
 
     def add_variable_field(key, value, group, position, label, description, required, read_only)
       value = value.to_json if [Hash, Array].include?(value.class)
