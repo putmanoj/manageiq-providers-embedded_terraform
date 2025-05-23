@@ -114,7 +114,9 @@ class ServiceTerraformTemplate < ServiceGeneric
     [true, nil]
   end
 
-  def self.get_input_vars_from_job_options(job_options)
+  private
+
+  def get_input_vars_from_job_options(job_options)
     return {} if job_options.nil?
 
     input_vars = job_options.fetch(:input_vars, {})
@@ -129,8 +131,6 @@ class ServiceTerraformTemplate < ServiceGeneric
 
     input_vars
   end
-
-  private
 
   def job(action)
     stack(action)&.miq_task&.job
@@ -220,7 +220,7 @@ class ServiceTerraformTemplate < ServiceGeneric
 
     {
       :terraform_stack_id => action_job.options[:terraform_stack_id],
-      :input_vars         => ServiceTerraformTemplate.get_input_vars_from_job_options(action_job.options).deep_dup
+      :input_vars         => get_input_vars_from_job_options(action_job.options).deep_dup
     }
   end
 
