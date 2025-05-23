@@ -39,28 +39,24 @@ class ServiceTemplateTerraformTemplate < ServiceTemplate
     super
   end
 
-  private_class_method def self.validate_config_info(info)
-    info[:provision][:fqname] ||= default_provisioning_entry_point(SERVICE_TYPE_ATOMIC) if info.key?(:provision)
+  private_class_method def self.validate_config_info(config_info)
+    raise _("Must provide a configuration_script_payload_id") if !config_info.key?(:provision) || config_info[:provision][:configuration_script_payload_id].nil?
+
+    config_info[:provision][:fqname] ||= default_provisioning_entry_point(SERVICE_TYPE_ATOMIC)
+
+    prov_info_copy = config_info[:provision].except(:fqname)
 
     # By default, for Reconfigure(terraform apply) will have same config as Provision,
     # though the input parameters values, can be changed by the user
-    info[:reconfigure] ||= retirement_or_reconfigure_default_info(info[:provision])
-    info[:reconfigure][:fqname] ||= default_reconfiguration_entry_point
+    config_info[:reconfigure] ||= prov_info_copy.deep_dup
+    config_info[:reconfigure][:fqname] ||= default_reconfiguration_entry_point
 
     # By default, for Retirement(terraform destroy) will have same config as Provision config,
     # because retirement(terraform destroy) action is run in-reverse order with same terraform template.
-    info[:retirement] ||= retirement_or_reconfigure_default_info(info[:provision])
-    info[:retirement][:fqname] ||= default_retirement_entry_point
+    config_info[:retirement] ||= prov_info_copy.deep_dup
+    config_info[:retirement][:fqname] ||= default_retirement_entry_point
 
-    raise _("Must provide a configuration_script_payload_id") if info[:provision][:configuration_script_payload_id].nil?
-
-    info
-  end
-
-  private_class_method def self.retirement_or_reconfigure_default_info(prov_info)
-    info = prov_info.deep_dup
-    info.delete(:fqname)
-    info
+    config_info
   end
 
   def terraform_template(action)

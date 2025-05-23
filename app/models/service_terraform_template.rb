@@ -53,8 +53,7 @@ class ServiceTerraformTemplate < ServiceGeneric
 
   def postprocess(action)
     $embedded_terraform_log.debug("Service(#{id}).postprocess(#{action}) starts")
-    case action
-    when ResourceAction::RECONFIGURE
+    if action == ResourceAction::RECONFIGURE
       # As we have reached here, so the action was successful.
       # Now we update the Service with dialog options from Reconfiguration
       $embedded_terraform_log.info("successfully reconfiguired, save reconfigure job options, to service dialog options")
