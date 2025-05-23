@@ -178,10 +178,6 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
   end
 
   def input_vars
-    # extra_vars = options.dig(:input_vars, :extra_vars) || {}
-    # input_vars = options.dig(:input_vars, :input_vars) || {}
-    # # merge & over extra_vars with input_vars
-    # extra_vars.deep_merge!(input_vars)
     options.dig(:input_vars, :input_vars) || {}
   end
 

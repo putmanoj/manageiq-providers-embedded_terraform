@@ -1,21 +1,18 @@
 RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Template do
   let(:template) { FactoryBot.create(:terraform_template) }
   let(:env_vars)    { {} }
-  # let(:extra_vars)  { {} }
   let(:credentials) { [] }
   let(:terraform_stack_id) { '999-999-999-999' }
 
   let(:provision_options) do
     {
       :env         => env_vars,
-      # :extra_vars => extra_vars,
       :credentials => credentials
     }
   end
   let(:retirement_options) do
     {
       :env                => env_vars,
-      # :extra_vars => extra_vars,
       :credentials        => credentials,
       :action             => ResourceAction::RETIREMENT,
       :terraform_stack_id => terraform_stack_id
@@ -31,9 +28,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Templa
         :options => {
           :template_id        => template.id,
           :env_vars           => env_vars,
-          :input_vars         => {
-            # :extra_vars => extra_vars
-          },
+          :input_vars         => {},
           :credentials        => credentials,
           :poll_interval      => 60,
           :action             => ResourceAction::PROVISION,
@@ -49,9 +44,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Templa
         :options => {
           :template_id        => template.id,
           :env_vars           => env_vars,
-          :input_vars         => {
-            # :extra_vars => extra_vars
-          },
+          :input_vars         => {},
           :credentials        => credentials,
           :poll_interval      => 60,
           :action             => ResourceAction::RETIREMENT,

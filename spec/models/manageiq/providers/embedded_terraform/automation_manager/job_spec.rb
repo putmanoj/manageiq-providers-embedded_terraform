@@ -17,7 +17,6 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
   let(:env_vars)    { {} }
   let(:input_vars)  do
     {
-      # :extra_vars => {"name" => "stack123"},
       :input_vars => {"name" => "stack123"}
     }
   end

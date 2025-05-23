@@ -80,7 +80,6 @@ class ServiceTemplateTerraformTemplate < ServiceTemplate
         provision_dialog_id = create_new_dialog(
           info[:new_dialog_name],
           terraform_template(:provision)
-          # info[:extra_vars]
         ).id
         dialog_hash[:provision] = {:dialog_id => provision_dialog_id}
       else
@@ -97,10 +96,6 @@ class ServiceTemplateTerraformTemplate < ServiceTemplate
   end
 
   private
-
-  # def create_new_dialog(dialog_name, terraform_template, extra_vars)
-  #   Dialog::TerraformTemplateServiceDialog.create_dialog(dialog_name, terraform_template, extra_vars)
-  # end
 
   def create_new_dialog(dialog_name, terraform_template)
     Dialog::TerraformTemplateServiceDialog.create_dialog(dialog_name, terraform_template)

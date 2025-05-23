@@ -119,11 +119,5 @@ RSpec.describe(Terraform::Runner::OpenstackCredential) do
         expect(cred.connection_parameters).to(eq(expected))
       end
     end
-
-    # describe "#extra_vars" do
-    #   it "returns an empty hash" do
-    #     expect(cred.extra_vars).to(eq({}))
-    #   end
-    # end
   end
 end
