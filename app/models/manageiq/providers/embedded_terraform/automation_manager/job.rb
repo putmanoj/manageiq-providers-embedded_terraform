@@ -178,7 +178,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
   end
 
   def input_vars
-    options.dig(:input_vars, :input_vars) || {}
+    ServiceTerraformTemplate.get_input_vars_from_job_options(options)
   end
 
   def terraform_runner_action_type(resource_action)

@@ -115,6 +115,22 @@ class ServiceTerraformTemplate < ServiceGeneric
     [true, nil]
   end
 
+  def self.get_input_vars_from_job_options(job_options)
+    return {} if job_options.nil?
+
+    input_vars = job_options.fetch(:input_vars, {})
+
+    # Handle backward compatibility: nested :input_vars inside :input_vars
+    if input_vars.kind_of?(Hash) &&
+       input_vars.keys.size == 1 &&
+       input_vars.keys.first == :input_vars &&
+       input_vars[:input_vars].kind_of?(Hash)
+      input_vars = input_vars[:input_vars]
+    end
+
+    input_vars
+  end
+
   private
 
   def job(action)
@@ -208,7 +224,7 @@ class ServiceTerraformTemplate < ServiceGeneric
 
     {
       :terraform_stack_id => action_job.options[:terraform_stack_id],
-      :input_vars         => action_job.options.dig(:input_vars, :input_vars).deep_dup
+      :input_vars         => ServiceTerraformTemplate.get_input_vars_from_job_options(action_job.options).deep_dup
     }
   end
 
