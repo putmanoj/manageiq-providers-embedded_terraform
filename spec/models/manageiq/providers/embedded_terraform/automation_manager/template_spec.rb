@@ -28,7 +28,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Templa
         :options => {
           :template_id        => template.id,
           :env_vars           => env_vars,
-          :input_vars         => {},
+          :job_vars           => {},
           :credentials        => credentials,
           :poll_interval      => 60,
           :action             => ResourceAction::PROVISION,
@@ -44,7 +44,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Templa
         :options => {
           :template_id        => template.id,
           :env_vars           => env_vars,
-          :input_vars         => {},
+          :job_vars           => {},
           :credentials        => credentials,
           :poll_interval      => 60,
           :action             => ResourceAction::RETIREMENT,
