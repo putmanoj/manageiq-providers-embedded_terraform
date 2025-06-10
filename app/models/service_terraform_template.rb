@@ -119,7 +119,7 @@ class ServiceTerraformTemplate < ServiceGeneric
   def get_input_vars_from_job_options(job_options)
     return {} if job_options.nil?
 
-    input_vars = job_options.fetch(:input_vars, {})
+    input_vars = job_options.dig(:job_vars, :input_vars) || {}
 
     # Handle backward compatibility: nested :input_vars inside :input_vars
     if input_vars.kind_of?(Hash) &&

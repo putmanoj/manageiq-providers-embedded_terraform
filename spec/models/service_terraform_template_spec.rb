@@ -99,7 +99,7 @@ RSpec.describe ServiceTerraformTemplate do
         FactoryBot.create(:embedded_terraform_job).tap do |j|
           j.options = {
             :terraform_stack_id => terraform_stack_id,
-            :input_vars         => {
+            :job_vars           => {
               :input_vars => {
                 "name" => "World"
               }
@@ -168,7 +168,7 @@ RSpec.describe ServiceTerraformTemplate do
         FactoryBot.create(:embedded_terraform_job).tap do |j|
           j.options = {
             :terraform_stack_id => terraform_stack_id,
-            :input_vars         => {
+            :job_vars           => {
               :input_vars => {
                 "name" => "World"
               }
@@ -183,7 +183,7 @@ RSpec.describe ServiceTerraformTemplate do
         FactoryBot.create(:embedded_terraform_job).tap do |j|
           j.options = {
             :terraform_stack_id => terraform_stack_id,
-            :input_vars         => {
+            :job_vars           => {
               :input_vars => {
                 "name" => "New World"
               }
@@ -231,7 +231,7 @@ RSpec.describe ServiceTerraformTemplate do
         FactoryBot.create(:embedded_terraform_job).tap do |j|
           j.options = {
             :terraform_stack_id => terraform_stack_id,
-            :input_vars         => {
+            :job_vars           => {
               :input_vars => {
                 "name" => "World"
               }
