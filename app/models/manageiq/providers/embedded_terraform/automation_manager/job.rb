@@ -1,9 +1,9 @@
 class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
-  def self.create_job(template, env_vars, input_vars, credentials, action: ResourceAction::PROVISION, terraform_stack_id: nil, poll_interval: 1.minute)
+  def self.create_job(template, env_vars, job_vars, credentials, action: ResourceAction::PROVISION, terraform_stack_id: nil, poll_interval: 1.minute)
     super(
       :template_id        => template.id,
       :env_vars           => env_vars,
-      :input_vars         => input_vars,
+      :job_vars           => job_vars,
       :credentials        => credentials,
       :poll_interval      => poll_interval,
       :action             => action,
@@ -178,7 +178,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
   end
 
   def input_vars
-    options.fetch(:input_vars, {})
+    options.dig(:job_vars, :input_vars) || {}
   end
 
   def terraform_runner_action_type(resource_action)

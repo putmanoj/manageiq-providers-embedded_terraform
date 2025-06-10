@@ -20,6 +20,13 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
       "name" => "stack123"
     }
   end
+  let(:job_vars) do
+    {
+      :execution_ttl => "",
+      :verbosity     => "0",
+      :input_vars    => input_vars
+    }
+  end
   let(:credentials) { [] }
   let(:terraform_stack_id) { '999-999-999-999' }
 
@@ -28,14 +35,14 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
       it "create a job" do
         expect(
           described_class.create_job(
-            template, env_vars, input_vars, credentials, :action => ResourceAction::PROVISION, :terraform_stack_id => nil
+            template, env_vars, job_vars, credentials, :action => ResourceAction::PROVISION, :terraform_stack_id => nil
           )
         ).to have_attributes(
           :type    => "ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job",
           :options => {
             :template_id        => template.id,
             :env_vars           => env_vars,
-            :input_vars         => input_vars,
+            :job_vars           => job_vars,
             :credentials        => credentials,
             :poll_interval      => 60,
             :action             => ResourceAction::PROVISION,
@@ -53,14 +60,14 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
         it "create a job" do
           expect(
             described_class.create_job(
-              template, env_vars, input_vars, credentials, :action => action, :terraform_stack_id => terraform_stack_id
+              template, env_vars, job_vars, credentials, :action => action, :terraform_stack_id => terraform_stack_id
             )
           ).to have_attributes(
             :type    => "ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job",
             :options => {
               :template_id        => template.id,
               :env_vars           => env_vars,
-              :input_vars         => input_vars,
+              :job_vars           => job_vars,
               :credentials        => credentials,
               :poll_interval      => 60,
               :action             => action,
@@ -78,7 +85,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
     context "with ResourceAction::PROVISION" do
       let(:job) do
         described_class.create_job(
-          template, env_vars, input_vars, credentials, :action => ResourceAction::PROVISION, :terraform_stack_id => nil
+          template, env_vars, job_vars, credentials, :action => ResourceAction::PROVISION, :terraform_stack_id => nil
         ).tap do |job|
           job.state = state
           job.options.store(:git_checkout_tempdir, git_checkout_tempdir)
@@ -103,7 +110,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
         expect(job.options).to eq({
                                     :template_id            => template.id,
                                     :env_vars               => {},
-                                    :input_vars             => input_vars,
+                                    :job_vars               => job_vars,
                                     :credentials            => [],
                                     :poll_interval          => 1.minute,
                                     :action                 => ResourceAction::PROVISION,
@@ -121,7 +128,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
       context "with #{action}" do
         let(:job) do
           described_class.create_job(
-            template, env_vars, input_vars, credentials, :action => action, :terraform_stack_id => terraform_stack_id
+            template, env_vars, job_vars, credentials, :action => action, :terraform_stack_id => terraform_stack_id
           ).tap do |job|
             job.state = state
             job.options.store(:git_checkout_tempdir, git_checkout_tempdir)
@@ -162,7 +169,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
           expect(job.options).to eq({
                                       :template_id            => template.id,
                                       :env_vars               => {},
-                                      :input_vars             => input_vars,
+                                      :job_vars               => job_vars,
                                       :credentials            => [],
                                       :poll_interval          => 1.minute,
                                       :action                 => action,
