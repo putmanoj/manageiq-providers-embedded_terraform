@@ -97,7 +97,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
         {
           :input_vars                  => input_vars,
           :input_vars_type_constraints => {"name" => terraform_template_payload.dig(:input_vars, 0)},
-          :credentials                 => anything, # Authentication.where(credentials),
+          :credentials                 => [],
           :env_vars                    => {}
         }
       end
@@ -155,7 +155,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
           {
             :input_vars                  => input_vars,
             :input_vars_type_constraints => {"name" => terraform_template_payload.dig(:input_vars, 0)},
-            :credentials                 => anything, # Authentication.where(credentials),
+            :credentials                 => [],
             :env_vars                    => {},
             :stack_id                    => terraform_stack_id
           }
