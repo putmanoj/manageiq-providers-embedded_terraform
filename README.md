@@ -1,6 +1,6 @@
 # ManageIQ::Providers::EmbeddedTerraform
 
-[![CI](https://github.com/ManageIQ/manageiq-providers-embedded_terraform/actions/workflows/ci.yaml/badge.svg)](https://github.com/ManageIQ/manageiq-providers-embedded_terraform/actions/workflows/ci.yaml)
+[![CI](https://github.com/ManageIQ/manageiq-providers-embedded_terraform/actions/workflows/ci.yaml/badge.svg?branch=master)](https://github.com/ManageIQ/manageiq-providers-embedded_terraform/actions/workflows/ci.yaml)
 [![Code Climate](https://codeclimate.com/github/ManageIQ/manageiq-providers-embedded_terraform.svg)](https://codeclimate.com/github/ManageIQ/manageiq-providers-embedded_terraform)
 [![Test Coverage](https://codeclimate.com/github/ManageIQ/manageiq-providers-embedded_terraform/badges/coverage.svg)](https://codeclimate.com/github/ManageIQ/manageiq-providers-embedded_terraform/coverage)
 [![Chat](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ManageIQ/manageiq-providers-embedded_terraform?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
