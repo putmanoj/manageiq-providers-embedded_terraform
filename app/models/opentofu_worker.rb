@@ -10,7 +10,8 @@ class OpentofuWorker < MiqWorker
     %i[workers worker_base opentofu_worker]
   ]
 
-  OPENTOFU_RUNTIME_DIR = "/var/lib/manageiq/opentofu-runner".freeze
+  MIQ_CONTAINERS_ROOT_DIR = "/var/lib/manageiq/containers/storage".freeze
+  OPENTOFU_RUNTIME_DIR    = "/var/lib/manageiq/opentofu-runner".freeze
   SERVICE_PORT = 6000
 
   def self.service_base_name
@@ -143,11 +144,11 @@ class OpentofuWorker < MiqWorker
   end
 
   def create_podman_secret
-    return if AwesomeSpawn.run("runuser", :params => [[:login, "manageiq"], [:command, "podman secret exists --root=#{Rails.root.join("data/containers/storage")} opentofu-runner-secret"]]).success?
+    return if AwesomeSpawn.run("runuser", :params => [[:login, "manageiq"], [:command, "podman secret exists --root=#{MIQ_CONTAINERS_ROOT_DIR} opentofu-runner-secret"]]).success?
 
     secret = {"DATABASE_PASSWORD" => database_configuration[:password]}
 
-    AwesomeSpawn.run!("runuser", :params => [[:login, "manageiq"], [:command, "podman secret create --root=#{Rails.root.join("data/containers/storage")} opentofu-runner-secret -"]], :in_data => secret.to_json)
+    AwesomeSpawn.run!("runuser", :params => [[:login, "manageiq"], [:command, "podman secret create --root=#{MIQ_CONTAINERS_ROOT_DIR} opentofu-runner-secret -"]], :in_data => secret.to_json)
   end
 
   def database_configuration
