@@ -5,10 +5,11 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
       :relative_path => "terraform/templates/aws-instance-ec2-nano",
     }
   end
-  let(:template) { FactoryBot.create(:terraform_template, :payload => terraform_template_payload.to_json) }
+  let(:configuration_script) { FactoryBot.create(:configuration_script_embedded_terraform, :parent => terraform_template) }
+  let(:terraform_template) { FactoryBot.create(:terraform_template, :payload => terraform_template_payload.to_json) }
   let(:git_checkout_tempdir) { "/tmp" }
   let(:job) do
-    described_class.create_job(template, env_vars, input_vars, credentials).tap do |job|
+    described_class.create_job(configuration_script, env_vars, input_vars, credentials).tap do |job|
       job.state = state
       job.options.store(:git_checkout_tempdir, git_checkout_tempdir)
     end
@@ -35,12 +36,12 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
       it "create a job" do
         expect(
           described_class.create_job(
-            template, env_vars, job_vars, credentials, :action => ResourceAction::PROVISION, :terraform_stack_id => nil
+            configuration_script, env_vars, job_vars, credentials, :action => ResourceAction::PROVISION, :terraform_stack_id => nil
           )
         ).to have_attributes(
           :type    => "ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job",
           :options => {
-            :template_id        => template.id,
+            :template_id        => configuration_script.id,
             :env_vars           => env_vars,
             :job_vars           => job_vars,
             :credentials        => credentials,
@@ -60,12 +61,12 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
         it "create a job" do
           expect(
             described_class.create_job(
-              template, env_vars, job_vars, credentials, :action => action, :terraform_stack_id => terraform_stack_id
+              configuration_script, env_vars, job_vars, credentials, :action => action, :terraform_stack_id => terraform_stack_id
             )
           ).to have_attributes(
             :type    => "ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job",
             :options => {
-              :template_id        => template.id,
+              :template_id        => configuration_script.id,
               :env_vars           => env_vars,
               :job_vars           => job_vars,
               :credentials        => credentials,
@@ -85,7 +86,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
     context "with ResourceAction::PROVISION" do
       let(:job) do
         described_class.create_job(
-          template, env_vars, job_vars, credentials, :action => ResourceAction::PROVISION, :terraform_stack_id => nil
+          configuration_script, env_vars, job_vars, credentials, :action => ResourceAction::PROVISION, :terraform_stack_id => nil
         ).tap do |job|
           job.state = state
           job.options.store(:git_checkout_tempdir, git_checkout_tempdir)
@@ -108,7 +109,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
         job.execute
 
         expect(job.options).to eq({
-                                    :template_id            => template.id,
+                                    :template_id            => configuration_script.id,
                                     :env_vars               => {},
                                     :job_vars               => job_vars,
                                     :credentials            => [],
@@ -128,7 +129,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
       context "with #{action}" do
         let(:job) do
           described_class.create_job(
-            template, env_vars, job_vars, credentials, :action => action, :terraform_stack_id => terraform_stack_id
+            configuration_script, env_vars, job_vars, credentials, :action => action, :terraform_stack_id => terraform_stack_id
           ).tap do |job|
             job.state = state
             job.options.store(:git_checkout_tempdir, git_checkout_tempdir)
@@ -167,7 +168,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
           job.execute
 
           expect(job.options).to eq({
-                                      :template_id            => template.id,
+                                      :template_id            => configuration_script.id,
                                       :env_vars               => {},
                                       :job_vars               => job_vars,
                                       :credentials            => [],
