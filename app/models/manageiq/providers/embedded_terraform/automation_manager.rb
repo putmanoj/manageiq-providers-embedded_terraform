@@ -16,6 +16,9 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager < ManageIQ::Prov
   end
 
   def self.catalog_types
-    {"generic_terraform_template" => N_("Terraform Template")}
+    {
+      "generic_terraform_template" => N_("Terraform Template (deprecated)"),
+      "embedded_terraform"         => N_("Terraform Template")
+    }
   end
 end
