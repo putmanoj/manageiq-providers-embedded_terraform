@@ -1,6 +1,7 @@
 class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageIQ::Providers::EmbeddedAutomationManager::OrchestrationStack
-  belongs_to :ext_management_system,        :foreign_key => :ems_id,                       :class_name => "ManageIQ::Providers::EmbeddedTerraform::AutomationManager",           :inverse_of => false
-  belongs_to :configuration_script_payload, :foreign_key => :configuration_script_base_id, :class_name => "ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Template", :inverse_of => :stacks
+  belongs_to :ext_management_system,        :foreign_key => :ems_id,                       :class_name => "ManageIQ::Providers::EmbeddedTerraform::AutomationManager",                      :inverse_of => false
+  belongs_to :configuration_script_payload, :foreign_key => :configuration_script_base_id, :class_name => "ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Template",            :inverse_of => :stacks
+  belongs_to :configuration_script,                                                        :class_name => "ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationScript", :inverse_of => :stacks
   belongs_to :miq_task,                     :foreign_key => :ems_ref,                      :inverse_of => false
 
   class << self

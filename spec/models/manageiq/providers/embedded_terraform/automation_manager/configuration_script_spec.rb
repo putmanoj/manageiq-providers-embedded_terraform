@@ -1,5 +1,5 @@
-RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Template do
-  let(:template) { FactoryBot.create(:terraform_template) }
+RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationScript do
+  let(:template) { FactoryBot.create(:configuration_script_embedded_terraform) }
   let(:env_vars)    { {} }
   let(:credentials) { [] }
   let(:terraform_stack_id) { '999-999-999-999' }

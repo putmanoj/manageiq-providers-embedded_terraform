@@ -10,34 +10,29 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationSc
   end
 
   def sync
-    update!(:status => "running")
-
-    transaction do
-      current = configuration_script_payloads.index_by(&:name)
-
-      templates = find_templates_in_git_repo
+    super do |current_payloads, current_scripts, tempdir, worktree|
+      templates = find_templates_in_git_repo(tempdir, worktree)
       templates.each do |template_path, value|
         $embedded_terraform_log.info("Template: #{template_path} => #{value.to_json}")
 
-        found = current.delete(template_path) || self.class.module_parent::Template.new(:configuration_script_source_id => id)
-        attrs = {
+        found_payload   = current_payloads.delete(template_path)
+        found_payload ||= self.class.module_parent::Template.new(:configuration_script_source_id => id)
+        found_payload.update!(
           :name         => template_path,
           :manager_id   => manager_id,
           :payload      => value.to_json,
           :payload_type => 'json'
-        }
+        )
 
-        found.update!(attrs)
+        found_script   = current_scripts.delete(template_path)
+        found_script ||= self.class.module_parent::ConfigurationScript.new(:configuration_script_source_id => id, :parent_id => found_payload.id)
+        found_script.update!(
+          :name       => template_path,
+          :manager_id => manager_id,
+          :parent_id  => found_payload.id
+        )
       end
-
-      current.each_value(&:destroy)
-      configuration_script_payloads.reload
     end
-
-    update!(:status => "successful", :last_updated_on => Time.zone.now, :last_update_error => nil)
-  rescue => error
-    update!(:status => "error", :last_updated_on => Time.zone.now, :last_update_error => error)
-    raise
   end
 
   # Return Template name, using relative_path's basename prefix,
@@ -72,36 +67,28 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationSc
   # Iterate through git repo worktree, and collate all terraform template dir's (dirs with .tf or .tf.json files).
   #
   # Returns [Hash] of template directories and files within it.
-  def find_templates_in_git_repo
+  def find_templates_in_git_repo(git_checkout_tempdir, worktree)
     template_dirs = {}
 
-    # checkout repo, for sending files to terraform-runner to parse for input/ouput vars.
-    checkout_git_repository do |git_checkout_tempdir|
-      # traverse through files in git-worktree
-      git_repository.with_worktree do |worktree|
-        worktree.ref = scm_branch
+    # Find all dir's with .tf/.tf.json files
+    worktree.blob_list
+            .group_by          { |file| File.dirname(file) }
+            .select            { |_dir, files| files.any? { |f| f.end_with?(".tf", ".tf.json") } }
+            .transform_values! { |files| files.map { |f| File.basename(f) } }
+            .each do |relative_path, files|
+      name = self.class.template_name_from_git_repo_url(git_repository.url, relative_path)
 
-        # Find all dir's with .tf/.tf.json files
-        worktree.blob_list
-                .group_by          { |file| File.dirname(file) }
-                .select            { |_dir, files| files.any? { |f| f.end_with?(".tf", ".tf.json") } }
-                .transform_values! { |files| files.map { |f| File.basename(f) } }
-                .each do |relative_path, files|
-          name = self.class.template_name_from_git_repo_url(git_repository.url, relative_path)
+      template_full_path = File.join(git_checkout_tempdir, relative_path)
 
-          template_full_path = File.join(git_checkout_tempdir, relative_path)
+      input_vars, output_vars, terraform_version = parse_vars_in_template(template_full_path)
 
-          input_vars, output_vars, terraform_version = parse_vars_in_template(template_full_path)
-
-          template_dirs[name] = {
-            :relative_path     => relative_path,
-            :files             => files,
-            :input_vars        => input_vars,
-            :output_vars       => output_vars,
-            :terraform_version => terraform_version,
-          }
-        end
-      end
+      template_dirs[name] = {
+        :relative_path     => relative_path,
+        :files             => files,
+        :input_vars        => input_vars,
+        :output_vars       => output_vars,
+        :terraform_version => terraform_version,
+      }
     end
 
     template_dirs
