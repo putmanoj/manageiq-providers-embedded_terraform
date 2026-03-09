@@ -186,14 +186,7 @@ RSpec.describe(ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Config
           names = names_and_payloads.collect(&:first)
           payloads = names_and_payloads.collect(&:second)
 
-          expect(names).to(
-            eq(
-              [
-                "templates/hello-world",
-                "templates/single-vm"
-              ]
-            )
-          )
+          expect(names).to(match_array(["templates/hello-world", "templates/single-vm"]))
 
           expected_hash1 = {
             "relative_path"     => File.dirname(multiple_templates_repo_structure.first),
