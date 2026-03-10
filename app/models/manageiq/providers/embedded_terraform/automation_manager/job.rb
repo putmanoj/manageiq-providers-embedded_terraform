@@ -1,7 +1,7 @@
 class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
-  def self.create_job(configuration_script, env_vars, job_vars, credentials, action: ResourceAction::PROVISION, terraform_stack_id: nil, poll_interval: 1.minute)
+  def self.create_job(template, env_vars, job_vars, credentials, action: ResourceAction::PROVISION, terraform_stack_id: nil, poll_interval: 1.minute)
     super(
-      :template_id        => configuration_script.id,
+      :template_id        => template.id,
       :env_vars           => env_vars,
       :job_vars           => job_vars,
       :credentials        => credentials,
@@ -115,16 +115,12 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
 
   private
 
-  def configuration_script
-    @configuration_script ||= self.class.module_parent::ConfigurationScript.find(options[:template_id])
-  end
-
-  def template_payload
-    @template_payload ||= configuration_script&.parent
+  def template
+    @template ||= self.class.module_parent::Template.find(options[:template_id])
   end
 
   def template_relative_path
-    JSON.parse(template_payload.payload)["relative_path"]
+    JSON.parse(template.payload)["relative_path"]
   end
 
   def stack_response
@@ -143,7 +139,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
   end
 
   def configuration_script_source
-    @configuration_script_source ||= configuration_script.configuration_script_source
+    @configuration_script_source ||= template.configuration_script_source
   end
 
   def queue_poll_runner
@@ -174,10 +170,10 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
   # @return [Hash]
   def input_vars_type_constraints
     require 'json'
-    payload = JSON.parse(template_payload.payload)
+    payload = JSON.parse(template.payload)
     (payload['input_vars'] || []).index_by { |v| v['name'] }
   rescue => error
-    $embedded_terraform_log.error("Failure in parsing payload for template/#{configuration_script.id}, caused by #{error.message}")
+    $embedded_terraform_log.error("Failure in parsing payload for template/#{template.id}, caused by #{error.message}")
     {}
   end
 
