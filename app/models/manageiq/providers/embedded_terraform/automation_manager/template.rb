@@ -11,4 +11,8 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Template < Mana
       self, env_vars, vars, credentials, :action => action, :terraform_stack_id => terraform_stack_id
     ).tap(&:signal_start)
   end
+
+  def configuration_script
+    children&.first
+  end
 end
