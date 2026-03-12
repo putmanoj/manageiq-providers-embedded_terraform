@@ -1,8 +1,8 @@
 class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageIQ::Providers::EmbeddedAutomationManager::OrchestrationStack
-  belongs_to :ext_management_system,        :foreign_key => :ems_id,                       :class_name => "ManageIQ::Providers::EmbeddedTerraform::AutomationManager",                      :inverse_of => false
-  belongs_to :configuration_script_payload, :foreign_key => :configuration_script_base_id, :class_name => "ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Template",            :inverse_of => :stacks
-  belongs_to :configuration_script,                                                        :class_name => "ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationScript", :inverse_of => :stacks
-  belongs_to :miq_task,                     :foreign_key => :ems_ref,                      :inverse_of => false
+  belongs_to :ext_management_system,        :foreign_key => :ems_id, :class_name => "ManageIQ::Providers::EmbeddedTerraform::AutomationManager", :inverse_of => false
+  belongs_to :configuration_script_payload, :foreign_key => :configuration_script_base_id, :class_name => "ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Template", :inverse_of => :stacks
+  belongs_to :miq_task,                     :foreign_key => :ems_ref, :inverse_of => false
+  belongs_to :configuration_script
 
   class << self
     alias create_job     create_stack
@@ -20,6 +20,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
         :ext_management_system        => terraform_template.manager,
         :verbosity                    => options[:verbosity].to_i,
         :authentications              => authentications,
+        :configuration_script         => terraform_template.configuration_script,
         :configuration_script_payload => terraform_template,
         :miq_task                     => miq_task,
         :status                       => miq_task&.state,
@@ -32,6 +33,10 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
     rescue => err
       $embedded_terraform_log.error("Failed to create job from template(#{terraform_template.name}), error: #{err}")
       raise MiqException::MiqOrchestrationProvisionError, err.to_s, err.backtrace
+    end
+
+    def status_class
+      "#{name}::Status".constantize
     end
 
     private
