@@ -1,0 +1,2 @@
+class ServiceEmbeddedTerraform < Service
+end
