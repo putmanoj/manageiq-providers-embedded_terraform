@@ -1,4 +1,6 @@
 class ServiceTerraformTemplate < ServiceGeneric
+  include ServiceEmbeddedTerraformMixin
+
   delegate :terraform_template, :to => :service_template, :allow_nil => true
 
   CONFIG_OPTIONS_WHITELIST = %i[
@@ -166,13 +168,17 @@ class ServiceTerraformTemplate < ServiceGeneric
       # We need the stack_id from Provision, then we override with update_options from Reconfiguration request
       prov_job_options = copy_terraform_stack_id_and_input_vars_from_job_options(ResourceAction::PROVISION)
       job_options.deep_merge!(prov_job_options)
-      job_options.deep_merge!(parse_dialog_options_only(overrides))
+
+      # We only want keys starting with 'dialog_', as these are user inputs, don't want other key/value pairs.
+      # Particularly in case of Reconfigure action, we use :only_dialog = true, as we want to remove keys like,
+      # - request => "service_reconfigure"
+      # - Service::service => ##
+      job_options.deep_merge!(input_vars_from_dialog(overrides, :only_dialog => true))
     else
       # For Provision
-      job_options.deep_merge!(parse_dialog_options(options))
+      job_options.deep_merge!(input_vars_from_dialog(options))
     end
 
-    #  job_options.deep_merge!(overrides)
     translate_credentials!(job_options)
 
     options[job_option_key(action)] = job_options
@@ -180,38 +186,7 @@ class ServiceTerraformTemplate < ServiceGeneric
   end
 
   def job_option_key(action)
-    "#{action.downcase}_job_options".to_sym
-  end
-
-  # We only want keys starting with 'dialog_', as these are user inputs, don't want other key/value pairs.
-  # Particularly in case of Reconfigure action, we want to remove keys like,
-  # - request => "service_reconfigure"
-  # - Service::service => ##
-  def parse_dialog_options_only(action_options)
-    dialog_options = action_options[:dialog] || {}
-    params = dialog_options.each_with_object({}) do |(attr, val), obj|
-      if attr.start_with?("dialog_")
-        var_key = attr.sub(/^(password::)?dialog_/, '')
-        obj[var_key] = val
-      end
-    end
-    {:input_vars => params}
-  end
-
-  def parse_dialog_options(action_options)
-    dialog_options = action_options[:dialog] || {}
-    params = dialog_options.each_with_object({}) do |(attr, val), obj|
-      var_key = attr.sub(/^(password::)?dialog_/, '')
-      obj[var_key] = val
-    end
-    {:input_vars => params}
-  end
-
-  def translate_credentials!(options)
-    options[:credentials] = []
-
-    credential_id = options.delete(:credential_id)
-    options[:credentials] << Authentication.find(credential_id).native_ref if credential_id.present?
+    :"#{action.downcase}_job_options"
   end
 
   def copy_terraform_stack_id_and_input_vars_from_job_options(action)

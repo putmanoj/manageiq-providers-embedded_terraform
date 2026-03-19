@@ -4,7 +4,7 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
   let(:ems)          { FactoryBot.create(:embedded_automation_manager_terraform, :zone => zone) }
   let(:terraform_template) { FactoryBot.create(:terraform_template, :manager => ems) }
   let(:configuration_script) { FactoryBot.create(:configuration_script_embedded_terraform, :manager => ems, :parent => terraform_template) }
-  let(:env_vars) { {} }
+  let!(:service) { FactoryBot.create(:service_embedded_terraform) }
   let(:miq_request)  { FactoryBot.create(:miq_provision_request, :requester => admin, :source => configuration_script) }
   let(:options)      { {:source => [terraform_template.id, terraform_template.name]} }
   let(:miq_task_state) { MiqTask::STATE_ACTIVE }
@@ -25,6 +25,7 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
       :phase        => phase
     )
   end
+  let(:stack_options) { {:action => ResourceAction::PROVISION, :input_vars => {}, :credentials => []} }
 
   it ".my_role" do
     expect(subject.my_role).to eq("ems_operations")
@@ -36,7 +37,8 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
 
   describe ".run_provision" do
     before do
-      allow(described_class.module_parent::Stack).to receive(:create_stack).with(terraform_template).and_return(new_stack)
+      allow(Service).to receive(:find_by).and_return(service)
+      allow(described_class.module_parent::Stack).to receive(:create_stack).with(terraform_template, stack_options).and_return(new_stack)
     end
 
     it "calls create_stack" do
