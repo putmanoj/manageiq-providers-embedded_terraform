@@ -9,6 +9,8 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
     alias raw_create_job raw_create_stack
 
     def create_stack(terraform_template, options = {})
+      $embedded_terraform_log.debug("Creating job from template(#{terraform_template.name}) with options: #{options}")
+
       authentications = collect_authentications(terraform_template.manager, options)
 
       job = raw_create_stack(terraform_template, options)
