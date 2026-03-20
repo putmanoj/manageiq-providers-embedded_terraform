@@ -7,6 +7,7 @@ module ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision::Sta
     stack = stack_klass.create_stack(source.terraform_template)
 
     phase_context[:stack_id] = stack.id
+    connect_to_service!(stack, :name => "Provision")
 
     save!
 
