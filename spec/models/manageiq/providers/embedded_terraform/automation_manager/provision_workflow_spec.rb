@@ -1,7 +1,7 @@
 describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ProvisionWorkflow do
   let(:admin)        { FactoryBot.create(:user_with_group) }
   let(:manager)      { FactoryBot.create(:embedded_automation_manager_terraform) }
-  let(:dialog)       { FactoryBot.create(:miq_provision_configuration_script_dialog) }
+  let(:dialog)       { FactoryBot.create(:miq_provision_configuration_script_embedded_terraform_dialogs) }
 
   describe "#allowed_configuration_scripts" do
     context "with no configuration_scripts" do

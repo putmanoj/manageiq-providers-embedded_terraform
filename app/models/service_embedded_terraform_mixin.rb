@@ -26,6 +26,10 @@ module ServiceEmbeddedTerraformMixin
   def stack_opts(action = ResourceAction::PROVISION, overrides = {})
     stack_opts = {:action => action}.merge(input_vars_from_dialog(options.merge(overrides)))
 
+    if instance_of?(ServiceEmbeddedTerraform)
+      stack_opts[:credential_id] = credential_id_from_workflow_provision_request(overrides)
+    end
+
     translate_credentials!(stack_opts)
 
     stack_opts
@@ -167,5 +171,14 @@ module ServiceEmbeddedTerraformMixin
   #   - verbosity
   def config_options!(action)
     options.fetch_path(:config_info, action.downcase.to_sym).slice(*CONFIG_OPTIONS_WHITELIST).with_indifferent_access if options.key?(:config_info)
+  end
+
+  def credential_id_from_workflow_provision_request(request_options)
+    credential_id = request_options[:credential_id]
+
+    # If for provision_workflow, coming from customize tab, it will have a array like [id, name], and we only take id
+    credential_id = credential_id.first if credential_id.kind_of?(Array) && credential_id.first.present?
+
+    credential_id
   end
 end

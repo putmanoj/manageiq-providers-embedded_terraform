@@ -1,7 +1,8 @@
 class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Template < ManageIQ::Providers::EmbeddedAutomationManager::ConfigurationScriptPayload
   has_many :stacks, :class_name => "ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack", :foreign_key => :configuration_script_base_id, :inverse_of => :configuration_script_payload, :dependent => :nullify
 
-  def run(vars = {}, _userid = nil)
+  def run(opts = {}, _userid = nil)
+    vars = opts.dup
     env_vars    = vars.delete(:env) || {}
     credentials = vars.delete(:credentials)
     action = vars.delete(:action) || ResourceAction::PROVISION

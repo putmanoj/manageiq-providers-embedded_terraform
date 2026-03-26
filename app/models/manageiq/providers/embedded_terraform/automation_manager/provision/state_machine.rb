@@ -4,11 +4,11 @@ module ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision::Sta
   end
 
   def provision
-    stack_opts = service.stack_opts
-    stack = stack_klass.create_stack(source.terraform_template, stack_opts)
+    stack_opts = service.stack_opts(ResourceAction::PROVISION, options)
+    stack = stack_klass.create_stack(source.terraform_template, stack_opts.dup)
 
     phase_context[:stack_id] = stack.id
-    connect_to_service!(stack, :name => "Provision")
+    connect_to_service!(stack, {:name => "Provision", :options => stack_opts})
 
     save!
 
