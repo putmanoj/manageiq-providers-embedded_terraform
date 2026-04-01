@@ -124,6 +124,37 @@
     :customize:
       :description: Customize
       :fields:
+        :verbosity:
+          :description: Verbosity
+          :values:
+            0: Normal
+            1: Verbose
+            2: More Verbose
+            3: Debug
+            4: Connection Debug
+            5: WinRM Debug
+          :notes:
+          :required: false
+          :display: :edit
+          :default: 0
+          :data_type: :integer
+        :log_output:
+          :description: Log Output
+          :values:
+            on_error: On Error
+            always: Always
+            never: Never
+          :notes:
+          :required: false
+          :display: :edit
+          :default: on_error
+          :data_type: :string
+        :execution_ttl:
+          :description: Max TTL (mins)
+          :notes:
+          :required: false
+          :display: :edit
+          :data_type: :integer
         :credential_id:
           :values_from:
             :method: :allowed_credentials
