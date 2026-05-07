@@ -6,7 +6,7 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
   let(:configuration_script) { FactoryBot.create(:configuration_script_embedded_terraform, :manager => ems, :parent => terraform_template) }
   let!(:service) { FactoryBot.create(:service_embedded_terraform) }
   let(:miq_request)  { FactoryBot.create(:miq_provision_request, :requester => admin, :source => configuration_script) }
-  let(:options)      { {:source => [terraform_template.id, terraform_template.name]} }
+  let(:options)      { {:source => [terraform_template.id, terraform_template.name], :service_guid => service.guid} }
   let(:miq_task_state) { MiqTask::STATE_ACTIVE }
   let(:miq_task_status) { MiqTask::STATUS_OK }
   let(:miq_task) { FactoryBot.create(:miq_task, :state => miq_task_state, :status => miq_task_status) }
@@ -127,6 +127,68 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
           :state  => "finished",
           :status => "Error"
         )
+      end
+    end
+  end
+
+  describe "#update_stack_resource_data!" do
+    let(:phase) { "post_provision" }
+    let(:job) { FactoryBot.create(:embedded_terraform_job, :options => job_options) }
+    let(:job_options) { {:terraform_stack_id => "c247b890-4af1-11f1-bd0c-0f4596b0f2c6", :terraform_stack_job_id => "1"} }
+    let(:service_resource) { FactoryBot.create(:service_resource, :service => service, :resource => new_stack) }
+
+    before do
+      subject.phase_context[:stack_id] = new_stack.id
+      new_stack.update(:miq_task => miq_task)
+      miq_task.update(:job => job)
+      allow(new_stack).to receive(:raw_status).and_return(new_stack.class.status_class.new(miq_task))
+    end
+
+    context "when all data is present" do
+      before { service_resource }
+
+      it "successfully updates service_resources with terraform_runner_stack_id and terraform_runner_stack_job_id" do
+        subject.send(:update_stack_resource_data!)
+
+        service_resource.reload
+        expect(service_resource.options["terraform_runner_stack_id"]).to eq(job_options[:terraform_stack_id])
+        expect(service_resource.options["terraform_runner_stack_job_id"]).to eq(job_options[:terraform_stack_job_id])
+      end
+    end
+
+    context "when stack is missing" do
+      it "handles missing stack gracefully" do
+        allow(subject).to receive(:stack).and_return(nil)
+
+        expect { subject.send(:update_stack_resource_data!) }.not_to raise_error
+      end
+    end
+
+    context "when terraform_runner_stack_id is missing" do
+      let(:job_options) { {} }
+
+      before { service_resource }
+
+      it "handles missing terraform_runner_stack_id gracefully" do
+        expect { subject.send(:update_stack_resource_data!) }.not_to raise_error
+
+        service_resource.reload
+        expect(service_resource.options["terraform_runner_stack_id"]).to be_nil
+      end
+    end
+
+    context "when stack_resource is missing" do
+      it "handles missing stack_resource gracefully" do
+        expect { subject.send(:update_stack_resource_data!) }.not_to raise_error
+      end
+    end
+    context "when stack_resource update fails" do
+      before { service_resource }
+
+      it "logs a warning when update returns false" do
+        allow_any_instance_of(ServiceResource).to receive(:update).and_return(false)
+        expect($embedded_terraform_log).to receive(:warn).with("Failed to update stack resource options")
+        subject.send(:update_stack_resource_data!)
       end
     end
   end
