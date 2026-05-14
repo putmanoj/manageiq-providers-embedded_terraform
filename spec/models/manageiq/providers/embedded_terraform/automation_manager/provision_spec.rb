@@ -186,8 +186,8 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
       before { service_resource }
 
       it "logs a warning when update returns false" do
-        allow_any_instance_of(ServiceResource).to receive(:update).and_return(false)
-        expect($embedded_terraform_log).to receive(:warn).with("Failed to update stack resource options")
+        allow_any_instance_of(ServiceResource).to receive(:update!).and_raise("ERROR")
+        expect($embedded_terraform_log).to receive(:warn).with("Failed to update stack resource options: ERROR")
         subject.send(:update_stack_resource_data!)
       end
     end

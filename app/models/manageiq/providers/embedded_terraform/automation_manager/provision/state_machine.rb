@@ -85,6 +85,6 @@ module ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision::Sta
       )
     )
   rescue => err
-    $embedded_terraform_log.warn("Failed to update stack resource options : #{err.message}")
+    $embedded_terraform_log.warn("Failed to update stack resource options: #{err.message}")
   end
 end
