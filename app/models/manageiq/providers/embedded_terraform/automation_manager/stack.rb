@@ -28,8 +28,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
         :status                       => miq_task&.state,
         :start_time                   => miq_task&.started_on
       ).tap do |stack|
-        job.target = stack
-        job.save!
+        job.update!(:target => stack)
       end
     end
 
@@ -209,9 +208,9 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
 
     Terraform::Runner.stack(terraform_stack_id)
   end
-end
 
-def handle_stack_operation_error(operation, err)
-  $embedded_terraform_log.error("Failed to #{operation}, error: #{err}")
-  raise MiqException::MiqOrchestrationProvisionError, err.message, err.backtrace
+  def handle_stack_operation_error(operation, err)
+    $embedded_terraform_log.error("Failed to #{operation}, error: #{err}")
+    raise MiqException::MiqOrchestrationProvisionError, err.message, err.backtrace
+  end
 end
