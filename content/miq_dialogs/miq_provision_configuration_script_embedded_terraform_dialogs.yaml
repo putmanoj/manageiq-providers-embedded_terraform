@@ -155,6 +155,15 @@
           :required: false
           :display: :edit
           :data_type: :integer
+        :credential_type:
+          :values_from:
+            :method: :allowed_credential_types
+          :description: Credential Type
+          :required: false
+          :display: :edit
+          :data_type: :string
+          :auto_select_single: false
+          :notes: Select the type of cloud credential to use
         :credential_id:
           :values_from:
             :method: :allowed_credentials
@@ -162,6 +171,7 @@
           :required: false
           :display: :edit
           :data_type: :integer
+          :auto_select_single: false
           :notes: Cloud Credential from [ Automation / Embedded Terraform / Credentials ]
       :display: :show
     :service:
