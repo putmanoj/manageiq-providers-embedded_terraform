@@ -53,7 +53,8 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
   end
 
   def retireable?
-    true
+    # if service is a ServiceEmbeddedTerraform, then it is not retireable, using raw_delete_stack
+    service.instance_of?(ServiceEmbeddedTerraform)
   end
 
   def raw_delete_stack
@@ -90,8 +91,8 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
     if retiring?
       return if delete_miq_task.nil?
 
-      if raw_status.running? #  delete_job.is_active?
-        delete_job.poll_runner
+      if raw_status.running? #  delete_job&.is_active?
+        delete_job&.poll_runner
       end
       return
     end
