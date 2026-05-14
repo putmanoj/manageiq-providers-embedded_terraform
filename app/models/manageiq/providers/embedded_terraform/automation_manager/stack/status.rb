@@ -8,7 +8,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack::Status <
 
   def initialize(stack)
     self.stack = stack
-    miq_task = (stack.delete_miq_task.presence || stack.miq_task)
+    miq_task   = stack.delete_miq_task.presence || stack.miq_task
 
     super(miq_task.state, miq_task.message)
     self.task_status = miq_task.status
