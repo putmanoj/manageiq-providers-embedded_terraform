@@ -69,25 +69,22 @@ module ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision::Sta
     return if stack.nil? || service.nil?
 
     job_options = stack.miq_task&.job&.options
-
     return if job_options.nil?
 
     terraform_runner_stack_id = job_options[:terraform_stack_id]
     terraform_runner_stack_job_id = job_options[:terraform_stack_job_id]
-
     return if terraform_runner_stack_id.blank?
 
     stack_resource = service.service_resources.find_by(:resource => stack)
-
     return if stack_resource.nil?
 
-    unless stack_resource.update(
+    stack_resource.update!(
       :options => stack_resource.options.merge(
         "terraform_runner_stack_id"     => terraform_runner_stack_id,
         "terraform_runner_stack_job_id" => terraform_runner_stack_job_id
       )
     )
-      $embedded_terraform_log.warn("Failed to update stack resource options")
-    end
+  rescue => err
+    $embedded_terraform_log.warn("Failed to update stack resource options : #{err.message}")
   end
 end

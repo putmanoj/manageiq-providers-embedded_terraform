@@ -53,7 +53,8 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
   end
 
   def retireable?
-    # if service is a ServiceEmbeddedTerraform, then it is not retireable, using raw_delete_stack
+    # return false, if service is a ServiceTerraformTemplate, handles retire itself, raw_delete_stack should not be called.
+    # return true, if service is ServiceEmbeddedTerraform, raw_delete_stack should be called.
     service.instance_of?(ServiceEmbeddedTerraform)
   end
 
@@ -85,26 +86,26 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
   end
 
   def refresh
-    # when retiring
+    # when retired or retirement-failed, no further action required
     return if retired? || error_retiring?
 
+    # where retirement is running
     if retiring?
       return if delete_miq_task.nil?
 
-      if raw_status.running? #  delete_job&.is_active?
+      if raw_status.running? # delete_job&.is_active?
         delete_job&.poll_runner
       end
-      return
-    end
+    else
+      # when provisioning
+      return unless miq_task
 
-    # when provisioning
-    return unless miq_task
-
-    transaction do
-      self.status      = miq_task.state
-      self.start_time  = miq_task.started_on
-      self.finish_time = raw_status.completed? ? miq_task.updated_on : nil
-      save!
+      transaction do
+        self.status      = miq_task.state
+        self.start_time  = miq_task.started_on
+        self.finish_time = raw_status.completed? ? miq_task.updated_on : nil
+        save!
+      end
     end
   end
 
@@ -169,7 +170,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
   end
 
   def delete_job
-    @delete_job ||= ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job.find_by(:target_id => id)
+    @delete_job ||= ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job.find_by(:target_id => id, :target_class => self.class.name)
   end
 
   def delete_miq_task

@@ -1,7 +1,7 @@
 class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack::Status < OrchestrationStack::Status
   LIVE_STATUS_RUNNING = 'running'.freeze
   LIVE_STATUS_CREATED = 'create_complete'.freeze
-  LIVE_STATUS_FAILED = 'failed'.freeze
+  LIVE_STATUS_FAILED  = 'failed'.freeze
   LIVE_STATUS_DELETED = 'delete_complete'.freeze
 
   attr_accessor :task_status, :stack
