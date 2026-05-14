@@ -12,10 +12,8 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
   end
 
   def target=(target)
-    return if target.nil?
-
-    self.target_class = target.class.name
-    self.target_id = target.id
+    self.target_class = target&.class&.name
+    self.target_id    = target&.id
   end
 
   def start
