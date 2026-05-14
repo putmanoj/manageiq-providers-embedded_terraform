@@ -4,4 +4,9 @@ FactoryBot.define do
           :parent => :service do
     options { {} }
   end
+  factory :service_embedded_terraform,
+          :class  => "ServiceEmbeddedTerraform",
+          :parent => :service do
+    options { {} }
+  end
 end

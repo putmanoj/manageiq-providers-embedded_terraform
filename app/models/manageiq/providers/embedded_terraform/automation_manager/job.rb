@@ -11,6 +11,11 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
     )
   end
 
+  def target=(target)
+    self.target_class = target&.class&.name
+    self.target_id    = target&.id
+  end
+
   def start
     queue_signal(:pre_execute)
   end

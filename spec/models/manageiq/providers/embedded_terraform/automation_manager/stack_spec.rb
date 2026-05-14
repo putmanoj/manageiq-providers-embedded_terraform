@@ -172,5 +172,127 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack 
         end
       end
     end
+
+    describe "#raw_delete_stack" do
+      let(:stack) { FactoryBot.create(:terraform_stack) }
+      let(:terraform_template) { FactoryBot.create(:terraform_template) }
+      let(:delete_job) { FactoryBot.create(:embedded_terraform_job) }
+
+      before do
+        allow(stack).to receive(:configuration_script_payload).and_return(terraform_template)
+      end
+
+      context "when service_resource is nil" do
+        before do
+          allow(stack).to receive(:service_resource).and_return(nil)
+        end
+
+        it "raises an error" do
+          expect { stack.raw_delete_stack }.to raise_error(
+            MiqException::Error,
+            /Cannot delete stack, service_resource not found for stack:/
+          )
+        end
+      end
+
+      context "when service_resource.options is blank" do
+        let(:service_resource) { double("ServiceResource", :options => nil) }
+
+        before do
+          allow(stack).to receive(:service_resource).and_return(service_resource)
+        end
+
+        it "raises an error" do
+          expect { stack.raw_delete_stack }.to raise_error(
+            MiqException::Error,
+            /Cannot delete stack, service_resource.options is empty for stack:/
+          )
+        end
+      end
+
+      context "when terraform_runner_stack_id is missing" do
+        let(:service_resource) { double("ServiceResource", :options => {"other_key" => "value"}) }
+
+        before do
+          allow(stack).to receive(:service_resource).and_return(service_resource)
+        end
+
+        it "raises an error" do
+          expect { stack.raw_delete_stack }.to raise_error(
+            MiqException::MiqOrchestrationProvisionError,
+            /Cannot delete stack, did not find terraform_runner_stack_id for stack:/
+          )
+        end
+      end
+
+      context "when configuration_script_payload is nil" do
+        let(:service_resource) do
+          double("ServiceResource", :options => {"terraform_runner_stack_id" => "stack-123"})
+        end
+
+        before do
+          allow(stack).to receive(:service_resource).and_return(service_resource)
+          allow(stack).to receive(:configuration_script_payload).and_return(nil)
+        end
+
+        it "raises an error" do
+          expect { stack.raw_delete_stack }.to raise_error(
+            MiqException::Error,
+            /Cannot delete stack, configuration script payload not found for stack:/
+          )
+        end
+      end
+
+      context "when all required data is present" do
+        let(:service_resource) do
+          double("ServiceResource", :options => {
+                   "terraform_runner_stack_id" => "stack-123",
+                   "input_vars"                => {"key" => "value"},
+                   "credentials"               => ["999"]
+                 })
+        end
+
+        before do
+          allow(stack).to receive(:service_resource).and_return(service_resource)
+          allow(terraform_template).to receive(:run).and_return(delete_job)
+        end
+
+        it "creates a delete job with correct options" do
+          expected_options = {
+            "input_vars"        => {"key" => "value"},
+            "credentials"       => ["999"],
+            :action             => ResourceAction::RETIREMENT,
+            :terraform_stack_id => "stack-123"
+          }
+
+          expect(terraform_template).to receive(:run).with(expected_options).and_return(delete_job)
+          result = stack.raw_delete_stack
+          expect(result).to eq(delete_job)
+        end
+
+        it "returns the delete job" do
+          result = stack.raw_delete_stack
+          expect(result).to eq(delete_job)
+        end
+      end
+
+      context "when an unexpected error occurs" do
+        let(:service_resource) do
+          double("ServiceResource", :options => {"terraform_runner_stack_id" => "stack-123"})
+        end
+
+        before do
+          allow(stack).to receive(:service_resource).and_return(service_resource)
+          allow(terraform_template).to receive(:run).and_raise(StandardError, "Unexpected error")
+        end
+
+        it "raises MiqOrchestrationProvisionError" do
+          expect { stack.raw_delete_stack }.to raise_error(
+            MiqException::MiqOrchestrationProvisionError,
+            /Unexpected error/
+          )
+        end
+      end
+    end
   end
 end
