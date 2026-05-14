@@ -27,7 +27,10 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
         :miq_task                     => miq_task,
         :status                       => miq_task&.state,
         :start_time                   => miq_task&.started_on
-      )
+      ).tap do |stack|
+        job.target = stack
+        job.save!
+      end
     end
 
     def raw_create_stack(terraform_template, options = {})
@@ -69,15 +72,31 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
 
     $embedded_terraform_log.debug("Run job to delete stack(#{id}) for template(#{terraform_template.name}) with options: #{job_options}")
 
-    delete_job = terraform_template.run(job_options)
+    @delete_job = terraform_template.run(job_options)
+    delete_job.target = self
+    delete_job.save!
 
     $embedded_terraform_log.debug("Delete job created : #{delete_job.id}")
+
     delete_job
   rescue => err
     handle_stack_operation_error("delete stack for stack:#{id}", err)
   end
 
   def refresh
+    # when retiring
+    return if retired? || error_retiring?
+
+    if retiring?
+      return if delete_miq_task.nil?
+
+      if raw_status.running? #  delete_job.is_active?
+        delete_job.poll_runner
+      end
+      return
+    end
+
+    # when provisioning
     return unless miq_task
 
     transaction do
@@ -88,10 +107,14 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
     end
   end
 
+  def queue_refresh
+    MiqQueue.put(:class_name => self.class.name, :instance_id => id, :method_name => "refresh", :role => "embedded_terraform")
+  end
+
   def raw_status
     return nil unless miq_task
 
-    Status.new(miq_task)
+    Status.new(self)
   end
 
   delegate :normalized_live_status, :to => :raw_status, :allow_nil => true
@@ -144,6 +167,14 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
     @service_resource ||= service_resources.find_by(:resource => self)
   end
 
+  def delete_job
+    @delete_job ||= ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job.find_by(:target_id => id)
+  end
+
+  def delete_miq_task
+    @delete_miq_task ||= delete_job&.miq_task
+  end
+
   private
 
   def terraform_runner_stack_data
@@ -177,8 +208,6 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
     Terraform::Runner.stack(terraform_stack_id)
   end
 end
-
-private
 
 def handle_stack_operation_error(operation, err)
   $embedded_terraform_log.error("Failed to #{operation}, error: #{err}")

@@ -55,7 +55,7 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
 
     it "queues check_provisioned" do
       subject.instance_variable_set(:@stack, new_stack)
-      allow(new_stack).to receive(:raw_status).and_return(new_stack.class.status_class.new(miq_task))
+      allow(new_stack).to receive(:raw_status).and_return(new_stack.class.status_class.new(new_stack))
 
       subject.run_provision
 
@@ -79,7 +79,7 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
     let(:phase) { "check_provisioned" }
 
     before do
-      allow(new_stack).to receive(:raw_status).and_return(new_stack.class.status_class.new(miq_task))
+      allow(new_stack).to receive(:raw_status).and_return(new_stack.class.status_class.new(new_stack))
       subject.instance_variable_set(:@stack, new_stack)
       subject.phase_context[:stack_id] = new_stack.id
     end
@@ -141,7 +141,7 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
       subject.phase_context[:stack_id] = new_stack.id
       new_stack.update(:miq_task => miq_task)
       miq_task.update(:job => job)
-      allow(new_stack).to receive(:raw_status).and_return(new_stack.class.status_class.new(miq_task))
+      allow(new_stack).to receive(:raw_status).and_return(new_stack.class.status_class.new(new_stack))
     end
 
     context "when all data is present" do
