@@ -172,6 +172,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack 
         end
       end
     end
+
     describe "#raw_delete_stack" do
       let(:stack) { FactoryBot.create(:terraform_stack) }
       let(:terraform_template) { FactoryBot.create(:terraform_template) }

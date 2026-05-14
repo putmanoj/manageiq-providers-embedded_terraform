@@ -135,7 +135,7 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
     let(:phase) { "post_provision" }
     let(:job) { FactoryBot.create(:embedded_terraform_job, :options => job_options) }
     let(:job_options) { {:terraform_stack_id => "c247b890-4af1-11f1-bd0c-0f4596b0f2c6", :terraform_stack_job_id => "1"} }
-    let(:service_resource) { FactoryBot.create(:service_resource, :service => service, :resource => new_stack) }
+    let!(:service_resource) { FactoryBot.create(:service_resource, :service => service, :resource => new_stack) }
 
     before do
       subject.phase_context[:stack_id] = new_stack.id
@@ -145,8 +145,6 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
     end
 
     context "when all data is present" do
-      before { service_resource }
-
       it "successfully updates service_resources with terraform_runner_stack_id and terraform_runner_stack_job_id" do
         subject.send(:update_stack_resource_data!)
 
@@ -167,8 +165,6 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
     context "when terraform_runner_stack_id is missing" do
       let(:job_options) { {} }
 
-      before { service_resource }
-
       it "handles missing terraform_runner_stack_id gracefully" do
         expect { subject.send(:update_stack_resource_data!) }.not_to raise_error
 
@@ -182,9 +178,8 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
         expect { subject.send(:update_stack_resource_data!) }.not_to raise_error
       end
     end
-    context "when stack_resource update fails" do
-      before { service_resource }
 
+    context "when stack_resource update fails" do
       it "logs a warning when update returns false" do
         allow_any_instance_of(ServiceResource).to receive(:update!).and_raise("ERROR")
         expect($embedded_terraform_log).to receive(:warn).with("Failed to update stack resource options: ERROR")
