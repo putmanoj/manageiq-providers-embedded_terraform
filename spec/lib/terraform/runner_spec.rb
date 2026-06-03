@@ -33,8 +33,176 @@ RSpec.describe(Terraform::Runner) do
     end
   end
 
+  describe ".wait_for_runner_availability!" do
+    let(:wait_time) { 10 }
+    let(:check_interval) { 1 }
+
+    before do
+      stub_const("ENV", ENV.to_h.merge(
+                          "TERRAFORM_RUNNER_URL"                         => terraform_runner_url,
+                          "TERRAFORM_RUNNER_AVAILABILITY_WAIT_TIME"      => wait_time.to_s,
+                          "TERRAFORM_RUNNER_AVAILABILITY_CHECK_INTERVAL" => check_interval.to_s
+                        ))
+      # Reset the @available instance variable before each test
+      Terraform::Runner.instance_variable_set(:@available, nil)
+    end
+
+    context "when runner is immediately available" do
+      before do
+        stub_request(:get, "#{terraform_runner_url}/ready")
+          .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+      end
+
+      it "does not wait and proceeds immediately" do
+        expect(Terraform::Runner).not_to receive(:sleep)
+        Terraform::Runner.send(:wait_for_runner_availability!)
+      end
+    end
+
+    context "when runner becomes available after waiting" do
+      before do
+        # First 2 calls return unavailable, 3rd call returns available
+        stub_request(:get, "#{terraform_runner_url}/ready")
+          .to_return(:status => 503, :body => {:status => "DOWN"}.to_json)
+          .times(2)
+          .then
+          .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+      end
+
+      it "waits and succeeds when runner becomes available" do
+        expect(Terraform::Runner).to receive(:sleep).with(check_interval).twice
+        expect { Terraform::Runner.send(:wait_for_runner_availability!) }.not_to raise_error
+      end
+    end
+
+    context "when runner never becomes available" do
+      before do
+        stub_request(:get, "#{terraform_runner_url}/ready")
+          .to_return(:status => 503, :body => {:status => "DOWN"}.to_json)
+      end
+
+      it "raises an error after timeout" do
+        expect(Terraform::Runner).to receive(:sleep).with(check_interval).at_least(:once)
+        expect { Terraform::Runner.send(:wait_for_runner_availability!) }
+          .to raise_error(RuntimeError, /Terraform runner is not available after waiting/)
+      end
+    end
+
+    context "when runner has connection errors" do
+      before do
+        # First 2 calls raise errors, 3rd call succeeds
+        stub_request(:get, "#{terraform_runner_url}/ready")
+          .to_raise(Faraday::ConnectionFailed)
+          .times(2)
+          .then
+          .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+      end
+
+      it "retries and succeeds when connection is restored" do
+        expect(Terraform::Runner).to receive(:sleep).with(check_interval).twice
+        expect { Terraform::Runner.send(:wait_for_runner_availability!) }.not_to raise_error
+      end
+    end
+  end
+
+  describe ".run_terraform_runner_stack_api with availability check" do
+    let(:wait_time) { 10 }
+    let(:check_interval) { 1 }
+
+    before do
+      stub_const("ENV", ENV.to_h.merge(
+                          "TERRAFORM_RUNNER_URL"                         => terraform_runner_url,
+                          "TERRAFORM_RUNNER_AVAILABILITY_WAIT_TIME"      => wait_time.to_s,
+                          "TERRAFORM_RUNNER_AVAILABILITY_CHECK_INTERVAL" => check_interval.to_s
+                        ))
+      # Reset the @available instance variable before each test
+      Terraform::Runner.instance_variable_set(:@available, nil)
+    end
+
+    context "when runner is available" do
+      before do
+        stub_request(:get, "#{terraform_runner_url}/ready")
+          .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+      end
+
+      let!(:create_stub) do
+        stub_request(:post, "#{terraform_runner_url}/api/stack/create")
+          .to_return(:status => 200, :body => @hello_world_create_response.to_json)
+      end
+
+      it "proceeds with the API call without waiting" do
+        expect(Terraform::Runner).not_to receive(:sleep)
+
+        Terraform::Runner.run(
+          Terraform::Runner::ActionType::CREATE,
+          File.join(__dir__, "runner/data/hello-world"),
+          {}
+        )
+
+        expect(create_stub).to have_been_requested.times(1)
+      end
+    end
+
+    context "when runner becomes available after waiting" do
+      before do
+        # Reset @available to ensure fresh state
+        Terraform::Runner.instance_variable_set(:@available, nil)
+
+        # First call returns unavailable, second call returns available
+        stub_request(:get, "#{terraform_runner_url}/ready")
+          .to_return(:status => 503, :body => {:status => "DOWN"}.to_json)
+          .times(1)
+          .then
+          .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+      end
+
+      let!(:create_stub) do
+        stub_request(:post, "#{terraform_runner_url}/api/stack/create")
+          .to_return(:status => 200, :body => @hello_world_create_response.to_json)
+      end
+
+      it "waits for availability then proceeds with the API call" do
+        expect(Terraform::Runner).to receive(:sleep).with(check_interval).once
+
+        Terraform::Runner.run(
+          Terraform::Runner::ActionType::CREATE,
+          File.join(__dir__, "runner/data/hello-world"),
+          {}
+        )
+
+        expect(create_stub).to have_been_requested.times(1)
+      end
+    end
+
+    context "when runner never becomes available" do
+      before do
+        stub_request(:get, "#{terraform_runner_url}/ready")
+          .to_return(:status => 503, :body => {:status => "DOWN"}.to_json)
+      end
+
+      it "raises an error and does not make the API call" do
+        create_stub = stub_request(:post, "#{terraform_runner_url}/api/stack/create")
+
+        expect do
+          Terraform::Runner.run(
+            Terraform::Runner::ActionType::CREATE,
+            File.join(__dir__, "runner/data/hello-world"),
+            {}
+          )
+        end.to raise_error(RuntimeError, /Terraform runner is not available after waiting/)
+
+        expect(create_stub).not_to have_been_requested
+      end
+    end
+  end
+
   context 'Create Stack for hello-world terraform template' do
     describe '.run create stack with input_vars' do
+      before do
+        stub_request(:get, "#{terraform_runner_url}/ready")
+          .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+      end
+
       def verify_req(req)
         body = JSON.parse(req.body)
         expect(body["name"]).to(start_with('stack-'))
@@ -117,6 +285,11 @@ RSpec.describe(Terraform::Runner) do
     end
 
     describe 'ResponseAsync' do
+      before do
+        stub_request(:get, "#{terraform_runner_url}/ready")
+          .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+      end
+
       let!(:retrieve_stub) do
         stub_request(:post, "#{terraform_runner_url}/api/stack/retrieve")
           .with(
@@ -187,6 +360,11 @@ RSpec.describe(Terraform::Runner) do
     end
 
     describe 'Stop running a create-stack job' do
+      before do
+        stub_request(:get, "#{terraform_runner_url}/ready")
+          .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+      end
+
       let!(:create_stub) do
         stub_request(:post, "#{terraform_runner_url}/api/stack/create")
           .with(:body => hash_including({:parameters => [], :cloud_providers => []}))
@@ -268,6 +446,11 @@ RSpec.describe(Terraform::Runner) do
     end
 
     describe 'Update stack for Reconfiguration of created stack' do
+      before do
+        stub_request(:get, "#{terraform_runner_url}/ready")
+          .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+      end
+
       def verify_req(req)
         body = JSON.parse(req.body)
         expect(body["stack_id"]).to eq(@hello_world_retrieve_update_response['stack_id'])
@@ -327,6 +510,11 @@ RSpec.describe(Terraform::Runner) do
     end
 
     describe 'Delete stack for Retirement of created stack' do
+      before do
+        stub_request(:get, "#{terraform_runner_url}/ready")
+          .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+      end
+
       def verify_req(req)
         body = JSON.parse(req.body)
         expect(body["stack_id"]).to(eq(@hello_world_retrieve_delete_response['stack_id']))
@@ -389,6 +577,11 @@ RSpec.describe(Terraform::Runner) do
 
   context 'Create stack with cloud credentials' do
     describe 'Create stack with amazon credential' do
+      before do
+        stub_request(:get, "#{terraform_runner_url}/ready")
+          .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+      end
+
       let(:amazon_cred) do
         params = {
           :userid         => "manageiq-aws",
@@ -456,6 +649,11 @@ RSpec.describe(Terraform::Runner) do
     end
 
     describe 'Create stack with vSphere & ibmcloud credential' do
+      before do
+        stub_request(:get, "#{terraform_runner_url}/ready")
+          .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+      end
+
       let(:vsphere_cred) do
         params = {
           :userid   => "userid",

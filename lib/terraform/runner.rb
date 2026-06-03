@@ -165,7 +165,7 @@ module Terraform
       end
 
       def run_terraform_runner_stack_api(request)
-        wait_for_runner_availability
+        wait_for_runner_availability!
 
         action_endpoint = ActionType.action_endpoint(request.action_type)
 
@@ -187,7 +187,7 @@ module Terraform
         end
       end
 
-      def wait_for_runner_availability
+      def wait_for_runner_availability!
         return if available?
 
         $embedded_terraform_log.info("Terraform runner is not available, waiting for up to #{runner_availability_wait_time_in_secs} seconds...")
@@ -196,10 +196,14 @@ module Terraform
         check_interval = runner_availability_check_interval_in_secs
         elapsed_time = 0
 
-        until available? || elapsed_time >= max_wait_time
+        until elapsed_time >= max_wait_time
           sleep(check_interval)
           elapsed_time += check_interval
           $embedded_terraform_log.debug("Waiting for terraform runner availability... (#{elapsed_time}/#{max_wait_time} seconds)")
+
+          # Reset cache and check availability
+          @available = nil
+          break if available?
         end
 
         if available?
