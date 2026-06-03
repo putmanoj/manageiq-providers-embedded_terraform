@@ -7,9 +7,10 @@ module Terraform
   class Runner
     class << self
       def available?
-        return @available if defined?(@available)
+        return true if @available
 
         response = terraform_runner_client.get('ready')
+        $embedded_terraform_log.debug("==== /ready : response.body: #{response.body}")
         @available = response.status == 200 && JSON.parse(response.body)['status'] == 'UP'
       rescue
         @available = false
@@ -136,6 +137,14 @@ module Terraform
         ENV.fetch('TERRAFORM_RUNNER_STACK_JOB_MAX_TIME', 120).to_i
       end
 
+      def runner_availability_wait_time_in_secs
+        ENV.fetch('TERRAFORM_RUNNER_AVAILABILITY_WAIT_TIME', 600).to_i
+      end
+
+      def runner_availability_check_interval_in_secs
+        ENV.fetch('TERRAFORM_RUNNER_AVAILABILITY_CHECK_INTERVAL', 5).to_i
+      end
+
       # create http client for terraform-runner rest-api
       def terraform_runner_client
         @terraform_runner_client ||= begin
@@ -156,6 +165,8 @@ module Terraform
       end
 
       def run_terraform_runner_stack_api(request)
+        wait_for_runner_availability
+
         action_endpoint = ActionType.action_endpoint(request.action_type)
 
         http_response = terraform_runner_client.post(
@@ -173,6 +184,29 @@ module Terraform
 
         Terraform::Runner::Response.parsed_response(http_response).tap do |resp|
           $embedded_terraform_log.info("terraform-runnner[#{action_endpoint}] stack/#{resp.stack_id}/#{resp.stack_job_id}")
+        end
+      end
+
+      def wait_for_runner_availability
+        return if available?
+
+        $embedded_terraform_log.info("Terraform runner is not available, waiting for up to #{runner_availability_wait_time_in_secs} seconds...")
+
+        max_wait_time = runner_availability_wait_time_in_secs
+        check_interval = runner_availability_check_interval_in_secs
+        elapsed_time = 0
+
+        until available? || elapsed_time >= max_wait_time
+          sleep(check_interval)
+          elapsed_time += check_interval
+          $embedded_terraform_log.debug("Waiting for terraform runner availability... (#{elapsed_time}/#{max_wait_time} seconds)")
+        end
+
+        if available?
+          $embedded_terraform_log.info("Terraform runner is now available after #{elapsed_time} seconds")
+        else
+          $embedded_terraform_log.warn("Terraform runner did not become available within #{max_wait_time} seconds")
+          raise "Terraform runner is not available after waiting #{max_wait_time} seconds"
         end
       end
 
