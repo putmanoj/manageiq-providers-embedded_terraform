@@ -18,4 +18,5 @@
     :opentofu_worker:
       :container_image: docker.io/manageiq/opentofu-runner:latest
       :heartbeat_timeout:
+      :memory_threshold: 1.5.gigabytes
       :opentofu_offline: false
