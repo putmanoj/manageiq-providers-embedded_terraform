@@ -22,7 +22,14 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
 
   def pre_execute
     checkout_git_repository
-    signal(:execute)
+
+    if Terraform::Runner.available?
+      signal(:execute)
+    else
+      delay = 10.seconds # poll_interval
+      $embedded_terraform_log.debug("Terraform::Runner service is not available, requeueing job pre_execute with delay: #{delay}")
+      queue_signal(:pre_execute, :deliver_on => Time.now.utc + delay)
+    end
   end
 
   def execute
@@ -60,10 +67,16 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
   end
 
   def poll_runner
-    if running?
-      queue_poll_runner
+    if Terraform::Runner.available?
+      if running?
+        $embedded_terraform_log.debug("Stack is still running, requeueing polling")
+        queue_poll_runner
+      else
+        signal(:post_execute)
+      end
     else
-      signal(:post_execute)
+      $embedded_terraform_log.debug("Terraform::Runner service is not available, requeueing polling")
+      queue_poll_runner
     end
   end
 

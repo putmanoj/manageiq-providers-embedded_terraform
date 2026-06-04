@@ -1,6 +1,11 @@
 module ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision::StateMachine
   def run_provision
-    signal :provision
+    if Terraform::Runner.available?
+      signal :provision
+    else
+      $embedded_terraform_log.debug("Terraform::Runner service is not available, requeueing provision")
+      requeue_phase
+    end
   end
 
   def provision
