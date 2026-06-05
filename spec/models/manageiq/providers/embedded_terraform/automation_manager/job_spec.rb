@@ -184,7 +184,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
   end
 
   describe "#signal" do
-    %w[start pre_execute execute poll_runner post_execute finish abort_job cancel error].each do |signal|
+    %w[start pre_execute poll_execute execute poll_runner post_execute finish abort_job cancel error].each do |signal|
       shared_examples_for "allows #{signal} signal" do
         it signal.to_s do
           expect(job).to receive(signal.to_sym)
@@ -203,6 +203,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
 
       it_behaves_like "allows start signal"
       it_behaves_like "doesn't allow pre_execute signal"
+      it_behaves_like "doesn't allow poll_execute signal"
       it_behaves_like "doesn't allow execute signal"
       it_behaves_like "doesn't allow poll_runner signal"
       it_behaves_like "doesn't allow post_execute signal"
@@ -217,7 +218,23 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
 
       it_behaves_like "doesn't allow start signal"
       it_behaves_like "allows pre_execute signal"
+      it_behaves_like "doesn't allow poll_execute signal"
       it_behaves_like "doesn't allow execute signal"
+      it_behaves_like "doesn't allow poll_runner signal"
+      it_behaves_like "doesn't allow post_execute signal"
+      it_behaves_like "allows finish signal"
+      it_behaves_like "allows abort_job signal"
+      it_behaves_like "allows cancel signal"
+      it_behaves_like "allows error signal"
+    end
+
+    context "execute" do
+      let(:state) { "execute" }
+
+      it_behaves_like "doesn't allow start signal"
+      it_behaves_like "doesn't allow pre_execute signal"
+      it_behaves_like "allows poll_execute signal"
+      it_behaves_like "allows execute signal"
       it_behaves_like "doesn't allow poll_runner signal"
       it_behaves_like "doesn't allow post_execute signal"
       it_behaves_like "allows finish signal"
@@ -231,6 +248,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
 
       it_behaves_like "doesn't allow start signal"
       it_behaves_like "doesn't allow pre_execute signal"
+      it_behaves_like "doesn't allow poll_execute signal"
       it_behaves_like "doesn't allow execute signal"
       it_behaves_like "allows poll_runner signal"
       it_behaves_like "allows post_execute signal"
@@ -245,6 +263,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
 
       it_behaves_like "doesn't allow start signal"
       it_behaves_like "doesn't allow pre_execute signal"
+      it_behaves_like "doesn't allow poll_execute signal"
       it_behaves_like "doesn't allow execute signal"
       it_behaves_like "doesn't allow poll_runner signal"
       it_behaves_like "doesn't allow post_execute signal"
@@ -259,6 +278,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
 
       it_behaves_like "doesn't allow start signal"
       it_behaves_like "doesn't allow pre_execute signal"
+      it_behaves_like "doesn't allow poll_execute signal"
       it_behaves_like "doesn't allow execute signal"
       it_behaves_like "doesn't allow poll_runner signal"
       it_behaves_like "doesn't allow post_execute signal"
@@ -270,30 +290,75 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
   end
 
   describe "#start" do
-    it "moves to state pre_execute" do
+    it "queues pre_execute" do
       job.signal(:start)
       expect(job.reload.state).to eq("pre_execute")
+    end
+  end
+
+  describe "#pre_execute" do
+    let(:state) { "pre_execute" }
+
+    it "queues poll_execute after checking out git repository" do
+      expect(job).to receive(:checkout_git_repository)
+      job.signal(:pre_execute)
+      expect(job.reload.state).to eq("execute")
+    end
+  end
+
+  describe "#poll_execute" do
+    let(:state) { "execute" }
+
+    context "when Terraform::Runner is available" do
+      before { allow(Terraform::Runner).to receive(:available?).and_return(true) }
+
+      it "signals execute" do
+        expect(job).to receive(:signal).with(:execute)
+        job.poll_execute
+      end
+    end
+
+    context "when Terraform::Runner is not available" do
+      before { allow(Terraform::Runner).to receive(:available?).and_return(false) }
+
+      it "requeues poll_execute" do
+        expect(job).to receive(:queue_signal).with(:poll_execute, :deliver_on => kind_of(Time))
+        job.poll_execute
+      end
     end
   end
 
   describe "#poll_runner" do
     let(:state) { "running" }
 
-    context "still running" do
-      before { expect(job).to receive(:running?).and_return(true) }
+    context "when Terraform::Runner is available" do
+      before { allow(Terraform::Runner).to receive(:available?).and_return(true) }
+
+      context "still running" do
+        before { expect(job).to receive(:running?).and_return(true) }
+
+        it "requeues poll_runner" do
+          job.signal(:poll_runner)
+          expect(job.reload.state).to eq("running")
+        end
+      end
+
+      context "completed" do
+        before { expect(job).to receive(:running?).and_return(false) }
+
+        it "signals post_execute" do
+          expect(job).to receive(:signal).with(:post_execute)
+          job.poll_runner
+        end
+      end
+    end
+
+    context "when Terraform::Runner is not available" do
+      before { allow(Terraform::Runner).to receive(:available?).and_return(false) }
 
       it "requeues poll_runner" do
         job.signal(:poll_runner)
         expect(job.reload.state).to eq("running")
-      end
-    end
-
-    context "completed" do
-      before { expect(job).to receive(:running?).and_return(false) }
-
-      it "moves to state finished" do
-        job.signal(:poll_runner)
-        expect(job.reload.state).to eq("finished")
       end
     end
   end
