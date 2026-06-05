@@ -7,8 +7,9 @@ module Terraform
   class Runner
     class << self
       def available?
-        return true if @available
+        return true if defined?(@available) && @available == true
 
+        # If not available, always fetch ready status from Terraform Runner service
         response = terraform_runner_client.get('ready')
         $embedded_terraform_log.debug("==== /ready : response.body: #{response.body}")
         @available = response.status == 200 && JSON.parse(response.body)['status'] == 'UP'
@@ -86,6 +87,7 @@ module Terraform
       #
       # @return [Terraform::Runner::Response] Response object with result of terraform run
       def retrieve_stack(stack_id, stack_job_id = nil)
+        $embedded_terraform_log.debug("Retrieve terraform runner stack: #{stack_id}/#{stack_job_id}")
         run_terraform_runner_stack_api(
           Request.new(
             ActionType::RETRIEVE,
@@ -169,10 +171,35 @@ module Terraform
 
         action_endpoint = ActionType.action_endpoint(request.action_type)
 
-        http_response = terraform_runner_client.post(
-          action_endpoint,
-          *request.build_json_post_arguments
-        )
+        begin
+          http_response = terraform_runner_client.post(
+            action_endpoint,
+            *request.build_json_post_arguments
+          )
+
+          # If we get a 503 error, then wait for runner availability and retry
+          if http_response.status == 503
+            $embedded_terraform_log.warn("Received 503 error from terraform runner, and migration is active, waiting for availability...")
+            # Reset cache and to check availability again
+            @available = false
+            wait_for_runner_availability!
+
+            http_response = terraform_runner_client.post(
+              action_endpoint,
+              *request.build_json_post_arguments
+            )
+          end
+        rescue Faraday::ConnectionFailed, Faraday::TimeoutError => e
+          $embedded_terraform_log.warn("Server not reachable: #{e.message}, waiting for availability...")
+          # Reset cache and to check availability again
+          @available = false
+          wait_for_runner_availability!
+
+          http_response = terraform_runner_client.post(
+            action_endpoint,
+            *request.build_json_post_arguments
+          )
+        end
 
         if request.action_type == ActionType::CREATE
           $embedded_terraform_log.info("terraform-runnner #{action_endpoint} for #{request.options["name"]} is running ...")
@@ -190,7 +217,7 @@ module Terraform
       def wait_for_runner_availability!
         return if available?
 
-        $embedded_terraform_log.info("Terraform runner is not available, waiting for up to #{runner_availability_wait_time_in_secs} seconds...")
+        $embedded_terraform_log.warn("Terraform runner is not available, waiting for up to #{runner_availability_wait_time_in_secs} seconds...")
 
         max_wait_time = runner_availability_wait_time_in_secs
         check_interval = runner_availability_check_interval_in_secs
@@ -199,10 +226,10 @@ module Terraform
         until elapsed_time >= max_wait_time
           sleep(check_interval)
           elapsed_time += check_interval
-          $embedded_terraform_log.debug("Waiting for terraform runner availability... (#{elapsed_time}/#{max_wait_time} seconds)")
+          $embedded_terraform_log.info("Waiting for terraform runner availability... (#{elapsed_time}/#{max_wait_time} seconds)")
 
           # Reset cache and check availability
-          @available = nil
+          @available = false
           break if available?
         end
 

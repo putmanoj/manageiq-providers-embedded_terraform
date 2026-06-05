@@ -196,6 +196,147 @@ RSpec.describe(Terraform::Runner) do
     end
   end
 
+  describe ".run_terraform_runner_stack_api with 503 error handling" do
+    let(:wait_time) { 10 }
+    let(:check_interval) { 1 }
+
+    before do
+      stub_const("ENV", ENV.to_h.merge(
+                          "TERRAFORM_RUNNER_URL"                         => terraform_runner_url,
+                          "TERRAFORM_RUNNER_AVAILABILITY_WAIT_TIME"      => wait_time.to_s,
+                          "TERRAFORM_RUNNER_AVAILABILITY_CHECK_INTERVAL" => check_interval.to_s
+                        ))
+      # Reset the @available instance variable before each test
+      Terraform::Runner.instance_variable_set(:@available, nil)
+    end
+
+    context "when API returns 503 error then succeeds on retry" do
+      before do
+        # Runner is initially available
+        stub_request(:get, "#{terraform_runner_url}/ready")
+          .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+          .times(1)
+          .then
+          # After 503, runner becomes unavailable then available again
+          .to_return(:status => 503, :body => {:status => "DOWN"}.to_json)
+          .times(1)
+          .then
+          .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+      end
+
+      let!(:create_stub) do
+        stub_request(:post, "#{terraform_runner_url}/api/stack/create")
+          .to_return(:status => 503, :body => {
+            :error => {
+              :statusCode => 503,
+              :name       => "ServiceUnavailable",
+              :message    => "API is temporarily unavailable due to an active database migration."
+            }
+          }.to_json)
+          .times(1)
+          .then
+          .to_return(:status => 200, :body => @hello_world_create_response.to_json)
+      end
+
+      it "waits for availability and retries the request" do
+        expect(Terraform::Runner).to receive(:sleep).with(check_interval).once
+
+        Terraform::Runner.run(
+          Terraform::Runner::ActionType::CREATE,
+          File.join(__dir__, "runner/data/hello-world"),
+          {}
+        )
+
+        expect(create_stub).to have_been_requested.times(2)
+      end
+    end
+  end
+
+  describe ".run_terraform_runner_stack_api with connection error handling" do
+    let(:wait_time) { 10 }
+    let(:check_interval) { 1 }
+
+    before do
+      stub_const("ENV", ENV.to_h.merge(
+                          "TERRAFORM_RUNNER_URL"                         => terraform_runner_url,
+                          "TERRAFORM_RUNNER_AVAILABILITY_WAIT_TIME"      => wait_time.to_s,
+                          "TERRAFORM_RUNNER_AVAILABILITY_CHECK_INTERVAL" => check_interval.to_s
+                        ))
+      # Reset the @available instance variable before each test
+      Terraform::Runner.instance_variable_set(:@available, nil)
+    end
+
+    context "when API raises ConnectionFailed then succeeds on retry" do
+      before do
+        # Runner is initially available
+        stub_request(:get, "#{terraform_runner_url}/ready")
+          .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+          .times(1)
+          .then
+          # After connection failure, runner becomes unavailable then available again
+          .to_return(:status => 503, :body => {:status => "DOWN"}.to_json)
+          .times(1)
+          .then
+          .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+      end
+
+      let!(:create_stub) do
+        stub_request(:post, "#{terraform_runner_url}/api/stack/create")
+          .to_raise(Faraday::ConnectionFailed.new("Connection refused"))
+          .times(1)
+          .then
+          .to_return(:status => 200, :body => @hello_world_create_response.to_json)
+      end
+
+      it "waits for availability and retries the request" do
+        expect(Terraform::Runner).to receive(:sleep).with(check_interval).once
+
+        Terraform::Runner.run(
+          Terraform::Runner::ActionType::CREATE,
+          File.join(__dir__, "runner/data/hello-world"),
+          {}
+        )
+
+        expect(create_stub).to have_been_requested.times(2)
+      end
+    end
+
+    context "when API raises TimeoutError then succeeds on retry" do
+      before do
+        # Runner is initially available
+        stub_request(:get, "#{terraform_runner_url}/ready")
+          .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+          .times(1)
+          .then
+          # After timeout, runner becomes unavailable then available again
+          .to_return(:status => 503, :body => {:status => "DOWN"}.to_json)
+          .times(1)
+          .then
+          .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+      end
+
+      let!(:create_stub) do
+        stub_request(:post, "#{terraform_runner_url}/api/stack/create")
+          .to_raise(Faraday::TimeoutError.new("Request timeout"))
+          .times(1)
+          .then
+          .to_return(:status => 200, :body => @hello_world_create_response.to_json)
+      end
+
+      it "waits for availability and retries the request" do
+        expect(Terraform::Runner).to receive(:sleep).with(check_interval).once
+
+        Terraform::Runner.run(
+          Terraform::Runner::ActionType::CREATE,
+          File.join(__dir__, "runner/data/hello-world"),
+          {}
+        )
+
+        expect(create_stub).to have_been_requested.times(2)
+      end
+    end
+  end
+
   context 'Create Stack for hello-world terraform template' do
     describe '.run create stack with input_vars' do
       before do
