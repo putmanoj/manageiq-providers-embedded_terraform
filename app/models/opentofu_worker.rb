@@ -43,10 +43,12 @@ class OpentofuWorker < MiqWorker
   end
 
   def add_readiness_probe(container_definition)
+    starting_timeout = self.class.worker_settings[:starting_timeout] || 3
+
     container_definition[:readinessProbe] = {
       :httpGet             => {:path => "/ready", :port => SERVICE_PORT, :scheme => "HTTPS"},
       :initialDelaySeconds => 60,
-      :timeoutSeconds      => 3
+      :timeoutSeconds      => starting_timeout
     }
   end
 
