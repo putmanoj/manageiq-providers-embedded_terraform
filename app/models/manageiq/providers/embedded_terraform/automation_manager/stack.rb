@@ -165,11 +165,15 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
   end
 
   def service_resource
-    @service_resource ||= service_resources.find_by(:resource => self)
+    return @service_resource if defined?(@service_resource)
+
+    @service_resource = service_resources.find_by(:resource => self)
   end
 
   def delete_job
-    @delete_job ||= ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job.find_by(:target_id => id, :target_class => self.class.name)
+    return @delete_job if defined?(@delete_job)
+
+    @delete_job = ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job.find_by(:target_id => id, :target_class => self.class.name)
   end
 
   def delete_miq_task
