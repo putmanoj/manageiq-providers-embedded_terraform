@@ -248,7 +248,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack 
           double("ServiceResource", :options => {
                    "terraform_runner_stack_id" => "stack-123",
                    "input_vars"                => {"key" => "value"},
-                   "credentials"               => ["999"]
+                   "credentials"               => [999]
                  })
         end
 
@@ -259,8 +259,8 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack 
 
         it "creates a delete job with correct options" do
           expected_options = {
-            "input_vars"        => {"key" => "value"},
-            "credentials"       => ["999"],
+            :input_vars         => {"key" => "value"},
+            :credentials        => [999],
             :action             => ResourceAction::RETIREMENT,
             :terraform_stack_id => "stack-123"
           }
