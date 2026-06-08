@@ -136,6 +136,7 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
     let(:job) { FactoryBot.create(:embedded_terraform_job, :options => job_options) }
     let(:job_options) { {:terraform_stack_id => "c247b890-4af1-11f1-bd0c-0f4596b0f2c6", :terraform_stack_job_id => "1"} }
     let!(:service_resource) { FactoryBot.create(:service_resource, :service => service, :resource => new_stack) }
+    let!(:auth) { FactoryBot.create(:authentication) }
 
     before do
       subject.phase_context[:stack_id] = new_stack.id
@@ -158,13 +159,16 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
           "dialog_var1" => "value1",
           "dialog_var2" => "value2"
         }
-        subject.options[:credential_id] = 123
+        subject.options[:credential_id] = auth.id
+
+        # Mock the authentication for credential translation
+        allow(Authentication).to receive(:find).with(auth.id).and_return(auth)
 
         # Update service_resource with provision options
         service_resource.update!(
           :options => {
             "input_vars"  => {"var1" => "value1", "var2" => "value2"},
-            "credentials" => [123]
+            "credentials" => [auth.id]
           }
         )
 
@@ -172,7 +176,7 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
 
         service_resource.reload
         expect(service_resource.options["input_vars"]).to eq({"var1" => "value1", "var2" => "value2"})
-        expect(service_resource.options["credentials"]).to eq([123])
+        expect(service_resource.options["credentials"]).to eq([auth.id])
         expect(service_resource.options["terraform_runner_stack_id"]).to eq(job_options[:terraform_stack_id])
       end
     end
@@ -220,6 +224,7 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
         :terraform_stack_job_id => "job-xyz-456"
       }
     end
+    let!(:auth) { FactoryBot.create(:authentication) }
     let!(:service_resource) do
       FactoryBot.create(
         :service_resource,
@@ -228,7 +233,7 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
         :name     => "Provision",
         :options  => {
           "input_vars"  => {"region" => "us-east-1", "instance_type" => "t2.micro"},
-          "credentials" => [789]
+          "credentials" => [auth.id]
         }
       )
     end
@@ -251,7 +256,7 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
 
         # Verify input_vars and credentials are preserved
         expect(service_resource.options["input_vars"]).to eq({"region" => "us-east-1", "instance_type" => "t2.micro"})
-        expect(service_resource.options["credentials"]).to eq([789])
+        expect(service_resource.options["credentials"]).to eq([auth.id])
       end
 
       it "ensures service_resource options can be used for retirement with symbol keys" do
@@ -263,7 +268,7 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
 
         expect(retirement_options).to eq({
                                            :input_vars  => {"region" => "us-east-1", "instance_type" => "t2.micro"},
-                                           :credentials => [789]
+                                           :credentials => [auth.id]
                                          })
       end
     end
