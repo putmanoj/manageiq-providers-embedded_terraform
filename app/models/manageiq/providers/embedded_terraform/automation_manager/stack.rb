@@ -67,7 +67,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
     terraform_template = configuration_script_payload
     raise MiqException::Error, "Cannot delete stack, configuration script payload not found for stack:#{id}" if terraform_template.nil?
 
-    job_options = service_resource.options.slice("input_vars", "credentials")
+    job_options = service_resource.options.slice("input_vars", "credentials").transform_keys(&:to_sym)
     job_options[:action] = ResourceAction::RETIREMENT
     job_options[:terraform_stack_id] = terraform_runner_stack_id
 
