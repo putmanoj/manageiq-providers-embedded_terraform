@@ -136,12 +136,12 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
     let(:job) { FactoryBot.create(:embedded_terraform_job, :options => job_options) }
     let(:job_options) { {:terraform_stack_id => "c247b890-4af1-11f1-bd0c-0f4596b0f2c6", :terraform_stack_job_id => "1"} }
     let!(:service_resource) { FactoryBot.create(:service_resource, :service => service, :resource => new_stack) }
+    let!(:auth) { FactoryBot.create(:authentication) }
 
     before do
       subject.phase_context[:stack_id] = new_stack.id
       new_stack.update(:miq_task => miq_task)
       miq_task.update(:job => job)
-      allow(new_stack).to receive(:raw_status).and_return(new_stack.class.status_class.new(new_stack))
     end
 
     context "when all data is present" do
@@ -151,6 +151,30 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
         service_resource.reload
         expect(service_resource.options["terraform_runner_stack_id"]).to eq(job_options[:terraform_stack_id])
         expect(service_resource.options["terraform_runner_stack_job_id"]).to eq(job_options[:terraform_stack_job_id])
+      end
+
+      it "stores input_vars and credentials for retirement" do
+        # Set up provision options with input_vars and credentials
+        subject.options[:dialog] = {
+          "dialog_var1" => "value1",
+          "dialog_var2" => "value2"
+        }
+        subject.options[:credential_id] = auth.id
+
+        # Update service_resource with provision options
+        service_resource.update!(
+          :options => {
+            "input_vars"  => {"var1" => "value1", "var2" => "value2"},
+            "credentials" => [auth.id]
+          }
+        )
+
+        subject.send(:update_stack_resource_data!)
+
+        service_resource.reload
+        expect(service_resource.options["input_vars"]).to eq({"var1" => "value1", "var2" => "value2"})
+        expect(service_resource.options["credentials"]).to eq([auth.id])
+        expect(service_resource.options["terraform_runner_stack_id"]).to eq(job_options[:terraform_stack_id])
       end
     end
 
@@ -184,6 +208,65 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
         allow_any_instance_of(ServiceResource).to receive(:update!).and_raise("ERROR")
         expect($embedded_terraform_log).to receive(:warn).with("Failed to update stack resource options: ERROR")
         subject.send(:update_stack_resource_data!)
+      end
+    end
+  end
+
+  describe "retirement data preparation" do
+    let(:phase) { "post_provision" }
+    let(:job) { FactoryBot.create(:embedded_terraform_job, :options => job_options) }
+    let(:job_options) do
+      {
+        :terraform_stack_id     => "stack-abc-123",
+        :terraform_stack_job_id => "job-xyz-456"
+      }
+    end
+    let!(:auth) { FactoryBot.create(:authentication) }
+    let!(:service_resource) do
+      FactoryBot.create(
+        :service_resource,
+        :service  => service,
+        :resource => new_stack,
+        :name     => "Provision",
+        :options  => {
+          "input_vars"  => {"region" => "us-east-1", "instance_type" => "t2.micro"},
+          "credentials" => [auth.id]
+        }
+      )
+    end
+
+    before do
+      subject.phase_context[:stack_id] = new_stack.id
+      new_stack.update(:miq_task => miq_task)
+      miq_task.update(:job => job)
+    end
+
+    context "when provisioning completes successfully" do
+      it "stores all required data for retirement in service_resource" do
+        subject.send(:update_stack_resource_data!)
+
+        service_resource.reload
+
+        # Verify terraform runner IDs are stored
+        expect(service_resource.options["terraform_runner_stack_id"]).to eq("stack-abc-123")
+        expect(service_resource.options["terraform_runner_stack_job_id"]).to eq("job-xyz-456")
+
+        # Verify input_vars and credentials are preserved
+        expect(service_resource.options["input_vars"]).to eq({"region" => "us-east-1", "instance_type" => "t2.micro"})
+        expect(service_resource.options["credentials"]).to eq([auth.id])
+      end
+
+      it "ensures service_resource options can be used for retirement with symbol keys" do
+        subject.send(:update_stack_resource_data!)
+        service_resource.reload
+
+        # Simulate what raw_delete_stack does: slice and transform keys to symbols
+        retirement_options = service_resource.options.slice("input_vars", "credentials").transform_keys(&:to_sym)
+
+        expect(retirement_options).to eq({
+                                           :input_vars  => {"region" => "us-east-1", "instance_type" => "t2.micro"},
+                                           :credentials => [auth.id]
+                                         })
       end
     end
   end

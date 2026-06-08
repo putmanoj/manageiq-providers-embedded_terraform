@@ -244,11 +244,12 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack 
       end
 
       context "when all required data is present" do
+        let!(:auth) { FactoryBot.create(:authentication) }
         let(:service_resource) do
           double("ServiceResource", :options => {
                    "terraform_runner_stack_id" => "stack-123",
                    "input_vars"                => {"key" => "value"},
-                   "credentials"               => ["999"]
+                   "credentials"               => [auth.id]
                  })
         end
 
@@ -259,8 +260,8 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack 
 
         it "creates a delete job with correct options" do
           expected_options = {
-            "input_vars"        => {"key" => "value"},
-            "credentials"       => ["999"],
+            :input_vars         => {"key" => "value"},
+            :credentials        => [auth.id],
             :action             => ResourceAction::RETIREMENT,
             :terraform_stack_id => "stack-123"
           }

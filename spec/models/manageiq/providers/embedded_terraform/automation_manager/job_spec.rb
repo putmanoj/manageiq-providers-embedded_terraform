@@ -27,7 +27,8 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
       :input_vars    => input_vars
     }
   end
-  let(:credentials) { [] }
+  let!(:auth) { FactoryBot.create(:authentication) }
+  let(:credentials) { [auth.id] }
   let(:terraform_stack_id) { '999-999-999-999' }
 
   describe ".create_job" do
@@ -97,7 +98,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
         {
           :input_vars                  => input_vars,
           :input_vars_type_constraints => {"name" => terraform_template_payload.dig(:input_vars, 0)},
-          :credentials                 => [],
+          :credentials                 => Authentication.where(:id => credentials),
           :env_vars                    => {}
         }
       end
@@ -111,7 +112,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
                                     :template_id            => template.id,
                                     :env_vars               => {},
                                     :job_vars               => job_vars,
-                                    :credentials            => [],
+                                    :credentials            => credentials,
                                     :poll_interval          => 1.minute,
                                     :action                 => ResourceAction::PROVISION,
                                     :terraform_stack_id     => response.stack_id,
@@ -155,7 +156,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
           {
             :input_vars                  => input_vars,
             :input_vars_type_constraints => {"name" => terraform_template_payload.dig(:input_vars, 0)},
-            :credentials                 => [],
+            :credentials                 => Authentication.where(:id => credentials),
             :env_vars                    => {},
             :stack_id                    => terraform_stack_id
           }
@@ -170,7 +171,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
                                       :template_id            => template.id,
                                       :env_vars               => {},
                                       :job_vars               => job_vars,
-                                      :credentials            => [],
+                                      :credentials            => credentials,
                                       :poll_interval          => 1.minute,
                                       :action                 => action,
                                       :terraform_stack_id     => response.stack_id,
