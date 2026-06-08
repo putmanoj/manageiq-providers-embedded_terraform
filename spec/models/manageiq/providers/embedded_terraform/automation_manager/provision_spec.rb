@@ -161,9 +161,6 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
         }
         subject.options[:credential_id] = auth.id
 
-        # Mock the authentication for credential translation
-        allow(Authentication).to receive(:find).with(auth.id).and_return(auth)
-
         # Update service_resource with provision options
         service_resource.update!(
           :options => {
