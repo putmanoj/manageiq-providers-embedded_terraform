@@ -29,7 +29,7 @@ module ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision::Sta
     if succeeded?
       signal :mark_as_completed
     else
-      abort_job("Failed to provision stack", "error")
+      raise MiqException::MiqProvisionError, "Failed to provision stack"
     end
   end
 

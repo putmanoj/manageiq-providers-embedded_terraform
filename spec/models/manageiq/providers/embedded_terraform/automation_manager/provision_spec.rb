@@ -55,7 +55,6 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
 
     it "queues check_provisioned" do
       subject.instance_variable_set(:@stack, new_stack)
-      allow(new_stack).to receive(:raw_status).and_return(new_stack.class.status_class.new(new_stack))
 
       subject.run_provision
 
@@ -79,7 +78,6 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
     let(:phase) { "check_provisioned" }
 
     before do
-      allow(new_stack).to receive(:raw_status).and_return(new_stack.class.status_class.new(new_stack))
       subject.instance_variable_set(:@stack, new_stack)
       subject.phase_context[:stack_id] = new_stack.id
     end
@@ -128,6 +126,27 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
           :status => "Error"
         )
       end
+    end
+  end
+
+  describe "#post_provision" do
+    let(:phase)           { "post_provision" }
+    let(:miq_task_state)  { MiqTask::STATE_FINISHED }
+    let(:miq_task_status) { MiqTask::STATUS_ERROR }
+
+    before do
+      subject.instance_variable_set(:@stack, new_stack)
+      subject.phase_context[:stack_id] = new_stack.id
+    end
+
+    it "sets the provision message" do
+      subject.signal(:post_provision)
+
+      expect(subject.reload).to have_attributes(
+        :state   => "finished",
+        :status  => "Error",
+        :message => "[MiqException::MiqProvisionError]: Failed to provision stack"
+      )
     end
   end
 
