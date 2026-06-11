@@ -48,6 +48,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack 
       let(:terraform_runner_stdout_html) { TerminalToHtml.render(terraform_runner_stdout) }
 
       before do
+        allow(Terraform::Runner).to receive(:available?).and_return(true)
         stub_const("ENV", ENV.to_h.merge("TERRAFORM_RUNNER_URL" => terraform_runner_url))
 
         stub_request(:post, "#{terraform_runner_url}/api/stack/retrieve")
@@ -125,6 +126,8 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack 
         EmbeddedTerraformEvmSpecHelper.assign_embedded_terraform_role
 
         allow_any_instance_of(ManageIQ::Providers::EmbeddedTerraform::AutomationManager::ConfigurationScriptSource).to receive(:checkout_git_repository)
+
+        allow(Terraform::Runner).to receive(:available?).and_return(true)
       end
 
       describe "#raw_stdout_via_worker with no errors" do

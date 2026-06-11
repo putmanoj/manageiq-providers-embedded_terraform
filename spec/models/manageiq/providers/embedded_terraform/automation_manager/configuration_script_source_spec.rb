@@ -27,6 +27,8 @@ RSpec.describe(ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Config
     end
 
     before do
+      allow(Terraform::Runner).to receive(:available?).and_return(true)
+
       stub_const("ENV", ENV.to_h.merge("TERRAFORM_RUNNER_URL" => terraform_runner_url))
 
       stub_request(:post, "#{terraform_runner_url}/api/template/variables")
@@ -94,6 +96,10 @@ RSpec.describe(ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Config
     end
 
     describe "create_in_provider runs sync" do
+      before do
+        allow(Terraform::Runner).to receive(:available?).and_return(true)
+      end
+
       it "finds top level template" do
         record = build_record
 
@@ -278,6 +284,10 @@ RSpec.describe(ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Config
     end
 
     describe "#update_in_provider" do
+      before do
+        allow(Terraform::Runner).to receive(:available?).and_return(true)
+      end
+
       let(:update_params) { {:scm_branch => "other_branch"} }
 
       context "with valid params" do

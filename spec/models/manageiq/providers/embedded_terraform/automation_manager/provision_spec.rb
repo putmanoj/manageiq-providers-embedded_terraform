@@ -39,6 +39,7 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
     before do
       allow(Service).to receive(:find_by).and_return(service)
       allow(described_class.module_parent::Stack).to receive(:create_stack).with(terraform_template, stack_options).and_return(new_stack)
+      allow(Terraform::Runner).to receive(:available?).and_return(true)
     end
 
     it "calls create_stack" do
