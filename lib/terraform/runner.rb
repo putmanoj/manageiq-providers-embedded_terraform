@@ -115,10 +115,7 @@ module Terraform
         request = Request.new(ActionType::TEMPLATE_VARIABLES, {:template_path => template_path})
         action_endpoint = ActionType.action_endpoint(ActionType::TEMPLATE_VARIABLES)
 
-        http_response = terraform_runner_client.post(
-          action_endpoint,
-          *request.build_json_post_arguments
-        )
+        http_response = post_with_retry(action_endpoint, request)
 
         $embedded_terraform_log.debug("==== http_response.body: \n #{http_response.body}")
         JSON.parse(http_response.body)
@@ -170,39 +167,9 @@ module Terraform
       end
 
       def run_terraform_runner_stack_api(request)
-        wait_for_runner_availability!
-
         action_endpoint = ActionType.action_endpoint(request.action_type)
 
-        begin
-          http_response = terraform_runner_client.post(
-            action_endpoint,
-            *request.build_json_post_arguments
-          )
-
-          # If we get a 503 error, then wait for runner availability and retry
-          if http_response.status == 503
-            $embedded_terraform_log.warn("Received 503 error from terraform runner, and migration is active, waiting for availability...")
-            # Reset cache and to check availability again
-            @available_mutex.synchronize { @available = false }
-            wait_for_runner_availability!
-
-            http_response = terraform_runner_client.post(
-              action_endpoint,
-              *request.build_json_post_arguments
-            )
-          end
-        rescue Faraday::ConnectionFailed, Faraday::TimeoutError => e
-          $embedded_terraform_log.warn("Server not reachable: #{e.message}, waiting for availability...")
-          # Reset cache and to check availability again
-          @available_mutex.synchronize { @available = false }
-          wait_for_runner_availability!
-
-          http_response = terraform_runner_client.post(
-            action_endpoint,
-            *request.build_json_post_arguments
-          )
-        end
+        http_response = post_with_retry(action_endpoint, request)
 
         if request.action_type == ActionType::CREATE
           $embedded_terraform_log.info("terraform-runnner #{action_endpoint} for #{request.options["name"]} is running ...")
@@ -215,6 +182,49 @@ module Terraform
         Terraform::Runner::Response.parsed_response(http_response).tap do |resp|
           $embedded_terraform_log.info("terraform-runnner[#{action_endpoint}] stack/#{resp.stack_id}/#{resp.stack_job_id}")
         end
+      end
+
+      # Post to terraform-runner API with retry logic for 503 errors and connection failures
+      #
+      # @param action_endpoint [String] The API endpoint to post to
+      # @param request [Terraform::Runner::Request] The request object containing the payload
+      # @return [Faraday::Response] The HTTP response from the API
+      def post_with_retry(action_endpoint, request)
+        wait_for_runner_availability!
+
+        begin
+          http_response = terraform_runner_client.post(
+            action_endpoint,
+            *request.build_json_post_arguments
+          )
+
+          # If we get a 503 error, then wait for runner availability and retry once.
+          # Note: Only one retry is attempted for 503 errors. If the retry also returns 503,
+          # the method will return that failed response without further retry attempts.
+          if http_response.status == 503
+            $embedded_terraform_log.warn("Received 503 error from terraform runner, and migration is active, waiting for availability...")
+            # Reset availability cache before retry
+            @available_mutex.synchronize { @available = false }
+            wait_for_runner_availability!
+
+            http_response = terraform_runner_client.post(
+              action_endpoint,
+              *request.build_json_post_arguments
+            )
+          end
+        rescue Faraday::ConnectionFailed, Faraday::TimeoutError => e
+          $embedded_terraform_log.warn("Server not reachable: #{e.message}, waiting for availability...")
+          # Reset availability cache before retry
+          @available_mutex.synchronize { @available = false }
+          wait_for_runner_availability!
+
+          http_response = terraform_runner_client.post(
+            action_endpoint,
+            *request.build_json_post_arguments
+          )
+        end
+
+        http_response
       end
 
       def wait_for_runner_availability!

@@ -879,6 +879,11 @@ RSpec.describe(Terraform::Runner) do
 
   context '.parse_template_variables hello-world' do
     describe '.parse_template_variables input/output vars' do
+      before do
+        stub_request(:get, "#{terraform_runner_url}/ready")
+          .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+      end
+
       def verify_req(req)
         body = JSON.parse(req.body)
         expect(body).to(have_key('templateZipFile'))
@@ -924,6 +929,217 @@ RSpec.describe(Terraform::Runner) do
 
         terraform_version = response['terraform_version']
         expect(terraform_version).to eq('>= 1.1.0')
+      end
+    end
+
+    describe '.parse_template_variables with availability check' do
+      let(:wait_time) { 10 }
+      let(:check_interval) { 1 }
+      let(:hello_world_variables_response) { JSON.parse(File.read(File.join(__dir__, "runner/data/responses/hello-world-variables-success.json"))) }
+
+      before do
+        stub_const("ENV", ENV.to_h.merge(
+                            "TERRAFORM_RUNNER_URL"                         => terraform_runner_url,
+                            "TERRAFORM_RUNNER_AVAILABILITY_WAIT_TIME"      => wait_time.to_s,
+                            "TERRAFORM_RUNNER_AVAILABILITY_CHECK_INTERVAL" => check_interval.to_s
+                          ))
+        # Reset the @available instance variable before each test
+        Terraform::Runner.instance_variable_set(:@available, nil)
+      end
+
+      context "when runner is available" do
+        before do
+          stub_request(:get, "#{terraform_runner_url}/ready")
+            .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+        end
+
+        let!(:template_variables_stub) do
+          stub_request(:post, "#{terraform_runner_url}/api/template/variables")
+            .to_return(:status => 200, :body => hello_world_variables_response.to_json)
+        end
+
+        it "proceeds with the API call without waiting" do
+          expect(Terraform::Runner).not_to receive(:sleep)
+
+          Terraform::Runner.parse_template_variables(File.join(__dir__, "runner/data/hello-world"))
+
+          expect(template_variables_stub).to have_been_requested.times(1)
+        end
+      end
+
+      context "when runner becomes available after waiting" do
+        before do
+          # Reset @available to ensure fresh state
+          Terraform::Runner.instance_variable_set(:@available, nil)
+
+          # First call returns unavailable, second call returns available
+          stub_request(:get, "#{terraform_runner_url}/ready")
+            .to_return(:status => 503, :body => {:status => "DOWN"}.to_json)
+            .times(1)
+            .then
+            .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+        end
+
+        let!(:template_variables_stub) do
+          stub_request(:post, "#{terraform_runner_url}/api/template/variables")
+            .to_return(:status => 200, :body => hello_world_variables_response.to_json)
+        end
+
+        it "waits for availability then proceeds with the API call" do
+          expect(Terraform::Runner).to receive(:sleep).with(check_interval).once
+
+          Terraform::Runner.parse_template_variables(File.join(__dir__, "runner/data/hello-world"))
+
+          expect(template_variables_stub).to have_been_requested.times(1)
+        end
+      end
+
+      context "when runner never becomes available" do
+        before do
+          stub_request(:get, "#{terraform_runner_url}/ready")
+            .to_return(:status => 503, :body => {:status => "DOWN"}.to_json)
+        end
+
+        it "raises an error and does not make the API call" do
+          template_variables_stub = stub_request(:post, "#{terraform_runner_url}/api/template/variables")
+
+          expect do
+            Terraform::Runner.parse_template_variables(File.join(__dir__, "runner/data/hello-world"))
+          end.to raise_error(RuntimeError, /Terraform runner is not available after waiting/)
+
+          expect(template_variables_stub).not_to have_been_requested
+        end
+      end
+    end
+
+    describe '.parse_template_variables with 503 error handling' do
+      let(:wait_time) { 10 }
+      let(:check_interval) { 1 }
+      let(:hello_world_variables_response) { JSON.parse(File.read(File.join(__dir__, "runner/data/responses/hello-world-variables-success.json"))) }
+
+      before do
+        stub_const("ENV", ENV.to_h.merge(
+                            "TERRAFORM_RUNNER_URL"                         => terraform_runner_url,
+                            "TERRAFORM_RUNNER_AVAILABILITY_WAIT_TIME"      => wait_time.to_s,
+                            "TERRAFORM_RUNNER_AVAILABILITY_CHECK_INTERVAL" => check_interval.to_s
+                          ))
+        # Reset the @available instance variable before each test
+        Terraform::Runner.instance_variable_set(:@available, nil)
+      end
+
+      context "when API returns 503 error then succeeds on retry" do
+        before do
+          # Runner is initially available
+          stub_request(:get, "#{terraform_runner_url}/ready")
+            .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+            .times(1)
+            .then
+            # After 503, runner becomes unavailable then available again
+            .to_return(:status => 503, :body => {:status => "DOWN"}.to_json)
+            .times(1)
+            .then
+            .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+        end
+
+        let!(:template_variables_stub) do
+          stub_request(:post, "#{terraform_runner_url}/api/template/variables")
+            .to_return(:status => 503, :body => {
+              :error => {
+                :statusCode => 503,
+                :name       => "ServiceUnavailable",
+                :message    => "API is temporarily unavailable due to an active database migration."
+              }
+            }.to_json)
+            .times(1)
+            .then
+            .to_return(:status => 200, :body => hello_world_variables_response.to_json)
+        end
+
+        it "waits for availability and retries the request" do
+          expect(Terraform::Runner).to receive(:sleep).with(check_interval).once
+
+          Terraform::Runner.parse_template_variables(File.join(__dir__, "runner/data/hello-world"))
+
+          expect(template_variables_stub).to have_been_requested.times(2)
+        end
+      end
+    end
+
+    describe '.parse_template_variables with connection error handling' do
+      let(:wait_time) { 10 }
+      let(:check_interval) { 1 }
+      let(:hello_world_variables_response) { JSON.parse(File.read(File.join(__dir__, "runner/data/responses/hello-world-variables-success.json"))) }
+
+      before do
+        stub_const("ENV", ENV.to_h.merge(
+                            "TERRAFORM_RUNNER_URL"                         => terraform_runner_url,
+                            "TERRAFORM_RUNNER_AVAILABILITY_WAIT_TIME"      => wait_time.to_s,
+                            "TERRAFORM_RUNNER_AVAILABILITY_CHECK_INTERVAL" => check_interval.to_s
+                          ))
+        # Reset the @available instance variable before each test
+        Terraform::Runner.instance_variable_set(:@available, nil)
+      end
+
+      context "when API raises ConnectionFailed then succeeds on retry" do
+        before do
+          # Runner is initially available
+          stub_request(:get, "#{terraform_runner_url}/ready")
+            .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+            .times(1)
+            .then
+            # After connection failure, runner becomes unavailable then available again
+            .to_return(:status => 503, :body => {:status => "DOWN"}.to_json)
+            .times(1)
+            .then
+            .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+        end
+
+        let!(:template_variables_stub) do
+          stub_request(:post, "#{terraform_runner_url}/api/template/variables")
+            .to_raise(Faraday::ConnectionFailed.new("Connection refused"))
+            .times(1)
+            .then
+            .to_return(:status => 200, :body => hello_world_variables_response.to_json)
+        end
+
+        it "waits for availability and retries the request" do
+          expect(Terraform::Runner).to receive(:sleep).with(check_interval).once
+
+          Terraform::Runner.parse_template_variables(File.join(__dir__, "runner/data/hello-world"))
+
+          expect(template_variables_stub).to have_been_requested.times(2)
+        end
+      end
+
+      context "when API raises TimeoutError then succeeds on retry" do
+        before do
+          # Runner is initially available
+          stub_request(:get, "#{terraform_runner_url}/ready")
+            .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+            .times(1)
+            .then
+            # After timeout, runner becomes unavailable then available again
+            .to_return(:status => 503, :body => {:status => "DOWN"}.to_json)
+            .times(1)
+            .then
+            .to_return(:status => 200, :body => {:status => "UP", :checks => []}.to_json)
+        end
+
+        let!(:template_variables_stub) do
+          stub_request(:post, "#{terraform_runner_url}/api/template/variables")
+            .to_raise(Faraday::TimeoutError.new("Request timeout"))
+            .times(1)
+            .then
+            .to_return(:status => 200, :body => hello_world_variables_response.to_json)
+        end
+
+        it "waits for availability and retries the request" do
+          expect(Terraform::Runner).to receive(:sleep).with(check_interval).once
+
+          Terraform::Runner.parse_template_variables(File.join(__dir__, "runner/data/hello-world"))
+
+          expect(template_variables_stub).to have_been_requested.times(2)
+        end
       end
     end
   end

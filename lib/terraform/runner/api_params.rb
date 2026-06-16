@@ -44,7 +44,6 @@ module Terraform
         end
       end
 
-      require 'set'
       TRUE_VALUES = ['T', 't', true, 'true', 'True', 'TRUE'].to_set
 
       # Normalize variables values, from ManageIQ values to Terraform Runner supported values
