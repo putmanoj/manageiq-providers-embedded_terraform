@@ -57,6 +57,15 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
     service.instance_of?(ServiceEmbeddedTerraform)
   end
 
+  def delete_stack
+    if Terraform::Runner.available?
+      raw_delete_stack
+    else
+      $embedded_terraform_log.debug("Terraform::Runner service is not available, requeueing delete_stack for Stack#{id}")
+      queue_delete_stack
+    end
+  end
+
   def raw_delete_stack
     raise MiqException::Error, "Cannot delete stack, service_resource not found for stack:#{id}" if service_resource.nil?
     raise MiqException::Error, "Cannot delete stack, service_resource.options is empty for stack:#{id}" if service_resource.options.blank?
@@ -106,6 +115,10 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
         save!
       end
     end
+  end
+
+  def queue_delete_stack
+    MiqQueue.put(:class_name => self.class.name, :instance_id => id, :method_name => "delete_stack", :role => "embedded_terraform", :deliver_on => Time.now.utc + delay_interval)
   end
 
   def queue_refresh
@@ -181,6 +194,10 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
   end
 
   private
+
+  def delay_interval
+    options.fetch(:delay_interval, 30.seconds).to_i
+  end
 
   def terraform_runner_stack_data
     if service_resource.present?

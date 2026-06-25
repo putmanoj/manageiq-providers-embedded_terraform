@@ -29,7 +29,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
     if Terraform::Runner.available?
       signal(:execute)
     else
-      $embedded_terraform_log.info("Terraform::Runner service is not available, requeueing poll_execute")
+      $embedded_terraform_log.info("Terraform::Runner service is not available, requeueing poll_execute for Job#{id}")
       queue_signal(:poll_execute, :deliver_on => Time.now.utc + poll_interval)
     end
   end
@@ -71,13 +71,13 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
   def poll_runner
     if Terraform::Runner.available?
       if running?
-        $embedded_terraform_log.debug("Stack is still running, requeueing polling")
+        $embedded_terraform_log.debug("Stack is still running, requeueing polling for Job#{id}")
         queue_poll_runner
       else
         signal(:post_execute)
       end
     else
-      $embedded_terraform_log.info("Terraform::Runner service is not available, requeueing polling")
+      $embedded_terraform_log.info("Terraform::Runner service is not available, requeueing polling for Job#{id}")
       queue_poll_runner
     end
   end
