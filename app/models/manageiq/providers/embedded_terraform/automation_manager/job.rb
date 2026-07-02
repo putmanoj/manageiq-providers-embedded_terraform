@@ -27,14 +27,20 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
 
   def poll_execute
     if Terraform::Runner.available?
+      options.delete(:runner_wait_started_at)
+      save!
       signal(:execute)
     else
-      $embedded_terraform_log.info("Terraform::Runner service is not available, requeueing poll_execute for Job#{id}")
-      queue_signal(:poll_execute, :deliver_on => Time.now.utc + poll_interval)
+      requeue_or_abort_on_runner_unavailable(:poll_execute)
     end
   end
 
   def execute
+    unless Terraform::Runner.available?
+      requeue_or_abort_on_runner_unavailable(:poll_execute)
+      return
+    end
+
     template_path = File.join(options[:git_checkout_tempdir], template_relative_path)
     credentials   = Authentication.where(:id => options[:credentials])
     action        = options[:action]
@@ -66,6 +72,9 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
     save!
 
     queue_poll_runner
+  rescue Terraform::Runner::TemporarilyUnavailable => e
+    $embedded_terraform_log.warn("Terraform::Runner became unavailable during execute for Job#{id}: #{e.message}")
+    requeue_or_abort_on_runner_unavailable(:poll_execute)
   end
 
   def poll_runner
@@ -74,12 +83,16 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
         $embedded_terraform_log.debug("Stack is still running, requeueing polling for Job#{id}")
         queue_poll_runner
       else
+        options.delete(:runner_wait_started_at)
+        save!
         signal(:post_execute)
       end
     else
-      $embedded_terraform_log.info("Terraform::Runner service is not available, requeueing polling for Job#{id}")
-      queue_poll_runner
+      requeue_or_abort_on_runner_unavailable(:poll_runner)
     end
+  rescue Terraform::Runner::TemporarilyUnavailable => e
+    $embedded_terraform_log.warn("Terraform::Runner became unavailable during poll_runner for Job#{id}: #{e.message}")
+    requeue_or_abort_on_runner_unavailable(:poll_runner)
   end
 
   def post_execute
@@ -134,6 +147,10 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
     options.fetch(:poll_interval, 30.seconds).to_i
   end
 
+  def max_runner_wait_time
+    Terraform::Runner.availability_max_wait_time
+  end
+
   private
 
   def template
@@ -165,6 +182,20 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
 
   def queue_poll_runner
     queue_signal(:poll_runner, :deliver_on => Time.now.utc + poll_interval)
+  end
+
+  def requeue_or_abort_on_runner_unavailable(signal_name)
+    options[:runner_wait_started_at] ||= Time.now.utc
+    save!
+
+    elapsed = Time.now.utc - options[:runner_wait_started_at]
+    if elapsed >= max_runner_wait_time
+      $embedded_terraform_log.error("Terraform::Runner unavailable for #{elapsed.to_i}s (max #{max_runner_wait_time}s), aborting Job#{id}")
+      abort_job("Terraform runner unavailable for too long", "error")
+    else
+      $embedded_terraform_log.info("Terraform::Runner not available, requeueing #{signal_name} for Job#{id} (waited #{elapsed.to_i}s/#{max_runner_wait_time}s)")
+      queue_signal(signal_name, :deliver_on => Time.now.utc + poll_interval)
+    end
   end
 
   def checkout_git_repository

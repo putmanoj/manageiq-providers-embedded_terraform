@@ -103,6 +103,8 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
         }
       end
 
+      before { allow(Terraform::Runner).to receive(:available?).and_return(true) }
+
       it "execute the job" do
         expect(Terraform::Runner).to receive(:run).with(action_type, template_path, runner_options).and_return(response)
 
@@ -119,6 +121,27 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
                                     :git_checkout_tempdir   => git_checkout_tempdir,
                                     :terraform_stack_job_id => response.stack_job_id
                                   })
+      end
+
+      context "when runner is not available" do
+        before { allow(Terraform::Runner).to receive(:available?).and_return(false) }
+
+        it "requeues to poll_execute" do
+          expect(job).to receive(:queue_signal).with(:poll_execute, :deliver_on => kind_of(Time))
+          job.execute
+        end
+      end
+
+      context "when runner raises TemporarilyUnavailable during run" do
+        before do
+          allow(Terraform::Runner).to receive(:run).and_raise(Terraform::Runner::TemporarilyUnavailable, "503")
+        end
+
+        it "requeues to poll_execute" do
+          expect(job).to receive(:queue_signal).with(:poll_execute, :deliver_on => kind_of(Time))
+          job.execute
+          expect(job.options[:runner_wait_started_at]).to be_a(Time)
+        end
       end
     end
 
@@ -161,6 +184,8 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
             :stack_id                    => terraform_stack_id
           }
         end
+
+        before { allow(Terraform::Runner).to receive(:available?).and_return(true) }
 
         it "execute the job" do
           expect(Terraform::Runner).to receive(:run).with(action_type, template_path, runner_options).and_return(response)
@@ -312,18 +337,29 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
     context "when Terraform::Runner is available" do
       before { allow(Terraform::Runner).to receive(:available?).and_return(true) }
 
-      it "signals execute" do
+      it "signals execute and clears runner_wait_started_at" do
+        job.options[:runner_wait_started_at] = 5.minutes.ago.utc
         expect(job).to receive(:signal).with(:execute)
         job.poll_execute
+        expect(job.options[:runner_wait_started_at]).to be_nil
       end
     end
 
     context "when Terraform::Runner is not available" do
       before { allow(Terraform::Runner).to receive(:available?).and_return(false) }
 
-      it "requeues poll_execute" do
+      it "requeues poll_execute and records wait start time" do
         expect(job).to receive(:queue_signal).with(:poll_execute, :deliver_on => kind_of(Time))
         job.poll_execute
+        expect(job.options[:runner_wait_started_at]).to be_a(Time)
+      end
+
+      it "aborts job when max wait time exceeded" do
+        job.options[:runner_wait_started_at] = 11.minutes.ago.utc
+        job.poll_execute
+        job.reload
+        expect(job.state).to eq("finished")
+        expect(job.status).to eq("error")
       end
     end
   end
@@ -346,9 +382,11 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
       context "completed" do
         before { expect(job).to receive(:running?).and_return(false) }
 
-        it "signals post_execute" do
+        it "signals post_execute and clears runner_wait_started_at" do
+          job.options[:runner_wait_started_at] = 5.minutes.ago.utc
           expect(job).to receive(:signal).with(:post_execute)
           job.poll_runner
+          expect(job.options[:runner_wait_started_at]).to be_nil
         end
       end
     end
@@ -356,9 +394,31 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
     context "when Terraform::Runner is not available" do
       before { allow(Terraform::Runner).to receive(:available?).and_return(false) }
 
+      it "requeues poll_runner and records wait start time" do
+        expect(job).to receive(:queue_signal).with(:poll_runner, :deliver_on => kind_of(Time))
+        job.poll_runner
+        expect(job.options[:runner_wait_started_at]).to be_a(Time)
+      end
+
+      it "aborts job when max wait time exceeded" do
+        job.options[:runner_wait_started_at] = 11.minutes.ago.utc
+        job.poll_runner
+        job.reload
+        expect(job.state).to eq("finished")
+        expect(job.status).to eq("error")
+      end
+    end
+
+    context "when running? raises TemporarilyUnavailable" do
+      before do
+        allow(Terraform::Runner).to receive(:available?).and_return(true)
+        allow(job).to receive(:running?).and_raise(Terraform::Runner::TemporarilyUnavailable, "503")
+      end
+
       it "requeues poll_runner" do
-        job.signal(:poll_runner)
-        expect(job.reload.state).to eq("running")
+        expect(job).to receive(:queue_signal).with(:poll_runner, :deliver_on => kind_of(Time))
+        job.poll_runner
+        expect(job.options[:runner_wait_started_at]).to be_a(Time)
       end
     end
   end

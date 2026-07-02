@@ -59,10 +59,11 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
 
   def delete_stack
     if Terraform::Runner.available?
+      options.delete(:runner_wait_started_at)
+      save!
       raw_delete_stack
     else
-      $embedded_terraform_log.debug("Terraform::Runner service is not available, requeueing delete_stack for Stack#{id}")
-      queue_delete_stack
+      requeue_or_fail_on_runner_unavailable
     end
   end
 
@@ -89,6 +90,9 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
     $embedded_terraform_log.debug("Delete job created : #{delete_job.id}")
 
     delete_job
+  rescue Terraform::Runner::TemporarilyUnavailable => e
+    $embedded_terraform_log.warn("Terraform::Runner became unavailable during raw_delete_stack for Stack#{id}: #{e.message}")
+    requeue_or_fail_on_runner_unavailable
   rescue => err
     handle_stack_operation_error("delete stack for stack:#{id}", err)
   end
@@ -197,6 +201,24 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
 
   def delay_interval
     options.fetch(:delay_interval, 30.seconds).to_i
+  end
+
+  def max_runner_wait_time
+    Terraform::Runner.availability_max_wait_time
+  end
+
+  def requeue_or_fail_on_runner_unavailable
+    options[:runner_wait_started_at] ||= Time.now.utc
+    save!
+
+    elapsed = Time.now.utc - options[:runner_wait_started_at]
+    if elapsed >= max_runner_wait_time
+      $embedded_terraform_log.error("Terraform::Runner unavailable for #{elapsed.to_i}s (max #{max_runner_wait_time}s), failing delete_stack for Stack#{id}")
+      raise MiqException::Error, "Terraform runner unavailable for too long, cannot delete stack:#{id}"
+    else
+      $embedded_terraform_log.info("Terraform::Runner not available, requeueing delete_stack for Stack#{id} (waited #{elapsed.to_i}s/#{max_runner_wait_time}s)")
+      queue_delete_stack
+    end
   end
 
   def terraform_runner_stack_data

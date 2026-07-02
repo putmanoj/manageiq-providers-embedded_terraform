@@ -1,14 +1,20 @@
 module ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision::StateMachine
   def run_provision
     if Terraform::Runner.available?
+      phase_context.delete(:runner_wait_started_at)
+      save!
       signal :provision
     else
-      $embedded_terraform_log.debug("Terraform::Runner service is not available, requeueing provision")
-      requeue_phase
+      requeue_or_abort_on_runner_unavailable
     end
   end
 
   def provision
+    unless Terraform::Runner.available?
+      requeue_or_abort_on_runner_unavailable
+      return
+    end
+
     stack_opts = service.stack_opts(ResourceAction::PROVISION, options)
     stack = stack_klass.create_stack(source.terraform_template, stack_opts.dup)
 
@@ -18,6 +24,9 @@ module ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision::Sta
     save!
 
     signal :check_provisioned
+  rescue Terraform::Runner::TemporarilyUnavailable => e
+    $embedded_terraform_log.warn("Terraform::Runner became unavailable during provision: #{e.message}")
+    requeue_or_abort_on_runner_unavailable
   end
 
   def check_provisioned
@@ -34,7 +43,8 @@ module ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision::Sta
     if succeeded?
       signal :mark_as_completed
     else
-      raise MiqException::MiqProvisionError, "Failed to provision stack"
+      update_and_notify_parent(:state => "finished", :status => "Error", :message => "Failed to provision stack")
+      signal :finish
     end
   end
 
@@ -64,6 +74,25 @@ module ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision::Sta
   end
 
   private
+
+  def max_runner_wait_time
+    Terraform::Runner.availability_max_wait_time
+  end
+
+  def requeue_or_abort_on_runner_unavailable
+    phase_context[:runner_wait_started_at] ||= Time.now.utc
+    save!
+
+    elapsed = Time.now.utc - phase_context[:runner_wait_started_at]
+    if elapsed >= max_runner_wait_time
+      $embedded_terraform_log.error("Terraform::Runner unavailable for #{elapsed.to_i}s (max #{max_runner_wait_time}s), aborting provision")
+      update_and_notify_parent(:state => "finished", :status => "Error", :message => "Terraform runner unavailable for too long")
+      signal :finish
+    else
+      $embedded_terraform_log.info("Terraform::Runner not available, requeueing provision (waited #{elapsed.to_i}s/#{max_runner_wait_time}s)")
+      requeue_phase
+    end
+  end
 
   # Updates the service resource with terraform runner stack information
   # that will be used during retirement actions.

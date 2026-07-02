@@ -139,6 +139,10 @@ module Terraform
         JSON.parse(http_response.body)
       end
 
+      def availability_max_wait_time
+        ENV.fetch('TERRAFORM_RUNNER_AVAILABILITY_MAX_WAIT_TIME', 600).to_i
+      end
+
       private
 
       def server_url
