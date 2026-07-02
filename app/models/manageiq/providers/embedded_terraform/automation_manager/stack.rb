@@ -59,8 +59,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
 
   def delete_stack
     if Terraform::Runner.available?
-      options.delete(:runner_wait_started_at)
-      save!
+      remove_runner_wait_started_at!
       raw_delete_stack
     else
       requeue_or_fail_on_runner_unavailable
@@ -201,6 +200,11 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
 
   def delay_interval
     options.fetch(:delay_interval, 30.seconds).to_i
+  end
+
+  def remove_runner_wait_started_at!
+    options.delete(:runner_wait_started_at)
+    save!
   end
 
   def max_runner_wait_time

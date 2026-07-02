@@ -27,8 +27,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
 
   def poll_execute
     if Terraform::Runner.available?
-      options.delete(:runner_wait_started_at)
-      save!
+      remove_runner_wait_started_at!
       signal(:execute)
     else
       requeue_or_abort_on_runner_unavailable(:poll_execute)
@@ -79,12 +78,11 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
 
   def poll_runner
     if Terraform::Runner.available?
+      remove_runner_wait_started_at!
       if running?
         $embedded_terraform_log.debug("Stack is still running, requeueing polling for Job#{id}")
         queue_poll_runner
       else
-        options.delete(:runner_wait_started_at)
-        save!
         signal(:post_execute)
       end
     else
@@ -182,6 +180,11 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
 
   def queue_poll_runner
     queue_signal(:poll_runner, :deliver_on => Time.now.utc + poll_interval)
+  end
+
+  def remove_runner_wait_started_at!
+    options.delete(:runner_wait_started_at)
+    save!
   end
 
   def requeue_or_abort_on_runner_unavailable(signal_name)
