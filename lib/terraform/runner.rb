@@ -17,21 +17,27 @@ module Terraform
         # If previously unavailable and within availability-cache TTL, return cached false
         return false if availability_cache_live?
 
-        @available_mutex.synchronize do
-          # Double-check inside mutex (another thread may have updated)
-          return false if availability_cache_live?
+        if @available_mutex.try_lock
+          begin
+            # Double-check inside mutex (another thread may have updated)
+            return false if availability_cache_live?
 
-          # Fetch ready status from Terraform Runner service
-          response = terraform_runner_client.get('ready')
-          $embedded_terraform_log.debug("Terraform runner ready check response: #{response.body}")
-          @available = response.status == 200 && JSON.parse(response.body)['status'] == 'UP'
-          @available_checked_at = Time.now.utc unless @available
-          @available
-        rescue
+            # Fetch ready status from Terraform Runner service
+            response = terraform_runner_client.get('ready')
+            $embedded_terraform_log.debug("Terraform runner ready check response: #{response.body}")
+            @available = response.status == 200 && JSON.parse(response.body)['status'] == 'UP'
+            @available_checked_at = Time.now.utc unless @available
+          rescue
+            @available = false
+            @available_checked_at = Time.now.utc
+          ensure
+            @available_mutex.unlock # Ensure lock is always released
+          end
+        else
           @available = false
-          @available_checked_at = Time.now.utc
-          false
         end
+
+        @available
       end
 
       def reset_available!
