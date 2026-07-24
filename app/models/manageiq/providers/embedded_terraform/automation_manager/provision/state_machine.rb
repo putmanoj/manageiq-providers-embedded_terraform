@@ -1,5 +1,7 @@
 module ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision::StateMachine
   def run_provision
+    return requeue_phase unless Terraform::Runner.available?
+
     signal :provision
   end
 
@@ -13,6 +15,8 @@ module ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision::Sta
     save!
 
     signal :check_provisioned
+  rescue Terraform::Runner::TemporarilyUnavailable
+    requeue_phase
   end
 
   def check_provisioned

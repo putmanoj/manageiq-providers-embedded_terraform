@@ -36,7 +36,10 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
   end
 
   describe ".run_provision" do
+    let(:phase) { "run_provision" }
+
     before do
+      allow(Terraform::Runner).to receive(:available?).and_return(true)
       allow(Service).to receive(:find_by).and_return(service)
       allow(described_class.module_parent::Stack).to receive(:create_stack).with(terraform_template, stack_options).and_return(new_stack)
     end
@@ -70,6 +73,24 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
         subject.run_provision
 
         expect(subject.reload).to have_attributes(:state => "finished", :status => "Error")
+      end
+    end
+
+    context "when Terraform::Runner is not available" do
+      before do
+        allow(Terraform::Runner).to receive(:available?).and_return(false)
+      end
+
+      it "requeues the phase without calling create_stack" do
+        expect(described_class.module_parent::Stack).not_to receive(:create_stack)
+
+        subject.run_provision
+
+        expect(subject.reload).to have_attributes(
+          :phase  => "run_provision",
+          :state  => "pending",
+          :status => "Ok"
+        )
       end
     end
   end
