@@ -1,6 +1,11 @@
 module ManageIQ::Providers::EmbeddedTerraform::AutomationManager::TerraformRunnerMixin
   TERRAFORM_RUNNER_UNAVAILABLE_TIMEOUT = 10.minutes
 
+  def terraform_runner_available!
+    phase_context.delete(:terraform_runner_unavailable_since)
+    save!
+  end
+
   def terraform_runner_unavailable_requeue_phase
     # Track when the runner first became unavailable
     phase_context[:terraform_runner_unavailable_since] ||= Time.now.utc

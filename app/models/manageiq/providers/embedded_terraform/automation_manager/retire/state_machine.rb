@@ -5,12 +5,14 @@ module ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Retire::StateM
   def run_retire
     return terraform_runner_unavailable_requeue_phase unless Terraform::Runner.available?
 
+    terraform_runner_available!
+
     signal :start_retirement
   end
 
   def remove_from_provider
     super
   rescue Terraform::Runner::TemporarilyUnavailable
-    requeue_phase
+    terraform_runner_unavailable_requeue_phase
   end
 end
