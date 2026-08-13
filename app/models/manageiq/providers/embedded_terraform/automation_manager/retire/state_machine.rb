@@ -3,7 +3,7 @@ module ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Retire::StateM
 
   # If the Terraform::Runner isn't available then don't start the retirement process
   def run_retire
-    return requeue_phase unless Terraform::Runner.available?
+    return terraform_runner_unavailable_requeue_phase unless Terraform::Runner.available?
 
     signal :start_retirement
   end

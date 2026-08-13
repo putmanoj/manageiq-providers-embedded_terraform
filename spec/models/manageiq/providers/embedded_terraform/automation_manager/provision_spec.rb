@@ -92,6 +92,59 @@ describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision do
           :status => "Ok"
         )
       end
+
+      it "tracks when runner became unavailable" do
+        subject.run_provision
+
+        expect(subject.reload.phase_context[:terraform_runner_unavailable_since]).to be_present
+        expect(subject.reload.phase_context[:terraform_runner_unavailable_since]).to be_a(Time)
+      end
+
+      it "logs warning with elapsed time on subsequent requeues" do
+        # First call - sets the unavailable timestamp
+        subject.run_provision
+        subject.reload
+
+        # Second call - should log elapsed time
+        Timecop.freeze(Time.now.utc + 30.seconds) do
+          expect(subject._log).to receive(:warn).with(/Terraform Runner is unavailable \(30s elapsed\), requeueing phase/)
+          subject.run_provision
+        end
+      end
+
+      context "when timeout is exceeded" do
+        it "raises MiqProvisionError after timeout period" do
+          # Set unavailable timestamp to more than 10 minutes ago
+          subject.phase_context[:terraform_runner_unavailable_since] = 11.minutes.ago.utc
+          subject.save!
+
+          expect(subject._log).to receive(:error).with(/Terraform Runner has been unavailable for \d+ seconds, exceeding timeout/)
+          expect { subject.run_provision }.to raise_error(MiqException::MiqProvisionError, /exceeding timeout/)
+        end
+
+        it "includes timeout duration in error message" do
+          subject.phase_context[:terraform_runner_unavailable_since] = 11.minutes.ago.utc
+          subject.save!
+
+          expect { subject.run_provision }.to raise_error(MiqException::MiqProvisionError, /600 seconds/)
+        end
+      end
+
+      context "when timeout is not exceeded" do
+        it "continues to requeue when under timeout" do
+          # Set unavailable timestamp to 5 minutes ago (under 10 minute timeout)
+          subject.phase_context[:terraform_runner_unavailable_since] = 5.minutes.ago.utc
+          subject.save!
+
+          expect { subject.run_provision }.not_to raise_error
+
+          expect(subject.reload).to have_attributes(
+            :phase  => "run_provision",
+            :state  => "pending",
+            :status => "Ok"
+          )
+        end
+      end
     end
   end
 
