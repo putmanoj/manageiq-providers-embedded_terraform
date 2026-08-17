@@ -17,8 +17,6 @@ module ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision::Sta
     save!
 
     signal :check_provisioned
-  rescue Terraform::Runner::TemporarilyUnavailable
-    terraform_runner_unavailable_requeue_phase
   end
 
   def check_provisioned
