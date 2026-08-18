@@ -66,6 +66,8 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
     save!
 
     queue_poll_runner
+  rescue => err
+    abort_job("Failed to run template: [#{err}]", "error")
   end
 
   def poll_runner
