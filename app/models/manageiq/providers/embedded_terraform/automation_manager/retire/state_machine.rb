@@ -9,10 +9,4 @@ module ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Retire::StateM
 
     signal :start_retirement
   end
-
-  def remove_from_provider
-    super
-  rescue Terraform::Runner::TemporarilyUnavailable
-    terraform_runner_unavailable_requeue_phase
-  end
 end
