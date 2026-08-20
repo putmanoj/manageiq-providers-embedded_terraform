@@ -7,15 +7,21 @@ module Terraform
   class Runner
     class TemporarilyUnavailable < StandardError; end
 
-    cache_with_timeout(:available) do
-      response = terraform_runner_client.get('ready')
-      response.status == 200 && JSON.parse(response.body)['status'] == 'UP'
-    rescue
-      false
-    end
-
     class << self
-      alias available? available
+      def available?
+        return @available unless @available.nil?
+
+        @available = begin
+          response = terraform_runner_client.get('ready')
+          response.status == 200 && JSON.parse(response.body)['status'] == 'UP'
+        rescue
+          false
+        end
+      end
+
+      def available_clear_cache
+        @available = nil
+      end
 
       # Run TerraformRunner Stack actions with a Terraform template.
       #
