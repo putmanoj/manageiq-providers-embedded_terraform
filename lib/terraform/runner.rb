@@ -11,9 +11,13 @@ module Terraform
       def available?
         return @available unless @available.nil?
 
-        @available = begin
+        begin
           response = terraform_runner_client.get('ready')
-          response.status == 200 && JSON.parse(response.body)['status'] == 'UP'
+
+          # Only cache the value if the runner is available.  If unavailable we want to check every
+          # time.  If the runner becomes unavailable after the exception handler will clear this
+          # cached variable.
+          @available = true if response.status == 200 && JSON.parse(response.body)['status'] == 'UP'
         rescue
           false
         end
