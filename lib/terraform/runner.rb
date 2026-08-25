@@ -68,7 +68,7 @@ module Terraform
         Terraform::Runner::ResponseAsync.new(response.stack_id, response.stack_job_id)
       rescue Faraday::TimeoutError, Faraday::ConnectionFailed => e
         available_clear_cache
-        raise Terraform::Runner::TemporarilyUnavailable, "Terraform runner not reachable: #{e.message}"
+        raise TemporarilyUnavailable, "Terraform runner not reachable: #{e.message}"
       end
 
       # Stop/Cancel running terraform-runner job, by stack_id
@@ -163,10 +163,6 @@ module Terraform
 
       def stack_job_max_time_in_secs
         ENV.fetch('TERRAFORM_RUNNER_STACK_JOB_MAX_TIME', 120).to_i
-      end
-
-      def availability_max_wait_time
-        ENV.fetch('TERRAFORM_RUNNER_AVAILABILITY_MAX_WAIT_TIME', 600).to_i
       end
 
       # create http client for terraform-runner rest-api
