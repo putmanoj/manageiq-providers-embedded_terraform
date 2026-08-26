@@ -51,6 +51,49 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
     end
   end
 
+  def reconfigurable?
+    # return true only for ServiceEmbeddedTerraform; the stack handles reconfigure via terraform runner.
+    service.instance_of?(ServiceEmbeddedTerraform)
+  end
+
+  def raw_reconfigure_stack(task_options = {})
+    raise MiqException::Error, "Cannot reconfigure stack, service_resource not found for stack:#{id}" if service_resource.nil?
+    raise MiqException::Error, "Cannot reconfigure stack, service_resource.options is empty for stack:#{id}" if service_resource.options.blank?
+
+    terraform_runner_stack_id = service_resource.options["terraform_runner_stack_id"]
+    raise MiqException::MiqOrchestrationProvisionError, "Cannot reconfigure stack, did not find terraform_runner_stack_id for stack:#{id}" if terraform_runner_stack_id.blank?
+
+    terraform_template = configuration_script_payload
+    raise MiqException::Error, "Cannot reconfigure stack, configuration script payload not found for stack:#{id}" if terraform_template.nil?
+
+    job_options = service_resource.options.slice("input_vars", "credentials").transform_keys(&:to_sym)
+
+    # Overlay any new dialog values supplied by the reconfigure request.
+    # Parse dialog_* keys the same way ServiceEmbeddedTerraformMixin#input_vars_from_dialog does.
+    if task_options[:dialog].present?
+      new_input_vars = task_options[:dialog].each_with_object({}) do |(attr, val), h|
+        key = attr.to_s.sub(/\Adialog_/, "")
+        h[key] = val unless key.empty?
+      end
+      job_options[:input_vars] = job_options[:input_vars].to_h.merge(new_input_vars)
+    end
+
+    job_options[:action]             = ResourceAction::RECONFIGURE
+    job_options[:terraform_stack_id] = terraform_runner_stack_id
+
+    $embedded_terraform_log.debug("Run job to reconfigure stack(#{id}) for template(#{terraform_template.name}) with options: #{job_options}")
+
+    @reconfigure_job = terraform_template.run(job_options)
+    reconfigure_job.target = self
+    reconfigure_job.save!
+
+    $embedded_terraform_log.debug("Reconfigure job created: #{reconfigure_job.id}")
+
+    reconfigure_job
+  rescue => err
+    handle_stack_operation_error("reconfigure stack for stack:#{id}", err)
+  end
+
   def retireable?
     # return false, if service is a ServiceTerraformTemplate, handles retire itself, raw_delete_stack should not be called.
     # return true, if service is ServiceEmbeddedTerraform, raw_delete_stack should be called.
@@ -174,6 +217,12 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
     return @delete_job if defined?(@delete_job)
 
     @delete_job = ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job.find_by(:target_id => id, :target_class => self.class.name)
+  end
+
+  def reconfigure_job
+    return @reconfigure_job if defined?(@reconfigure_job)
+
+    @reconfigure_job = ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job.find_by(:target_id => id, :target_class => self.class.name)
   end
 
   def delete_miq_task
