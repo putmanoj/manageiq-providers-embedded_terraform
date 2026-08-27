@@ -83,9 +83,16 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
 
     $embedded_terraform_log.debug("Run job to reconfigure stack(#{id}) for template(#{terraform_template.name}) with options: #{job_options}")
 
-    @reconfigure_job = terraform_template.run(job_options)
-    reconfigure_job.target = self
-    reconfigure_job.save!
+    transaction do
+      @reconfigure_job = terraform_template.run(job_options)
+      reconfigure_job.target = self
+      reconfigure_job.save!
+
+      # Update Service.options, with new dialog values
+      svc = service
+      svc.options[:dialog] = task_options[:dialog]
+      svc.save!
+    end
 
     $embedded_terraform_log.debug("Reconfigure job created: #{reconfigure_job.id}")
 
