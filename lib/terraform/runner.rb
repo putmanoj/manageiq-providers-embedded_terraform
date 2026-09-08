@@ -1,11 +1,8 @@
-require 'faraday'
-require 'tempfile'
-require 'zip'
-require 'base64'
-
 module Terraform
   class Runner
     class TemporarilyUnavailable < StandardError; end
+
+    require 'faraday'
 
     class << self
       def available?
