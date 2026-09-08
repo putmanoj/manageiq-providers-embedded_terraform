@@ -2,6 +2,8 @@
   :ems_embedded_terraform:
     :event_handling:
       :event_groups:
+    :terraform_runner:
+      :unavailable_timeout: 10.minutes
 :ems_refresh:
   :embedded_terraform:
     :refresh_interval: 15.minutes

@@ -11,9 +11,9 @@ module ManageIQ::Providers::EmbeddedTerraform::AutomationManager::TerraformRunne
     phase_context[:terraform_runner_unavailable_since] ||= Time.now.utc
 
     unavailable_duration = Time.now.utc - phase_context[:terraform_runner_unavailable_since]
-
-    if unavailable_duration > TERRAFORM_RUNNER_UNAVAILABLE_TIMEOUT
-      error_message = _("Terraform Runner has been unavailable for %{unavailable} seconds, exceeding timeout of %{timeout} seconds") % {:unavailable => unavailable_duration.to_i, :timeout => TERRAFORM_RUNNER_UNAVAILABLE_TIMEOUT.to_i}
+    unavailable_timeout  = Settings.ems.ems_embedded_terraform.terraform_runner.unavailable_timeout.to_i_with_method
+    if unavailable_duration > unavailable_timeout
+      error_message = _("Terraform Runner has been unavailable for %{unavailable} seconds, exceeding timeout of %{timeout} seconds") % {:unavailable => unavailable_duration.to_i, :timeout => unavailable_timeout}
       _log.error(error_message)
       raise MiqException::MiqProvisionError, error_message
     end
