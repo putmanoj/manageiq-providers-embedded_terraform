@@ -1,5 +1,13 @@
 module ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision::StateMachine
+  # If the Terraform::Runner isn't available then don't start the provisioning process.
+  #
+  # Mark the Terraform::Runner as available in our phase_context to reset the time if
+  # it becomes unavailable again during this state machine
   def run_provision
+    return terraform_runner_unavailable_requeue_phase unless Terraform::Runner.available?
+
+    terraform_runner_available!
+
     signal :provision
   end
 

@@ -22,7 +22,16 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
 
   def pre_execute
     checkout_git_repository
-    signal(:execute)
+    signal(:check_runner_availability)
+  end
+
+  def check_runner_availability
+    if Terraform::Runner.available?
+      signal(:execute)
+    else
+      $embedded_terraform_log.warn("Terraform Runner is not available, retrying...")
+      queue_signal(:check_runner_availability, :deliver_on => Time.now.utc + poll_interval)
+    end
   end
 
   def execute
@@ -57,6 +66,8 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
     save!
 
     queue_poll_runner
+  rescue => err
+    abort_job("Failed to run template: [#{err}]", "error")
   end
 
   def poll_runner
@@ -101,16 +112,17 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job < Job
     self.state ||= 'initialize'
 
     {
-      :initializing => {'initialize'       => 'waiting_to_start'},
-      :start        => {'waiting_to_start' => 'pre_execute'},
-      :pre_execute  => {'pre_execute'      => 'execute'},
-      :execute      => {'execute'          => 'running'},
-      :poll_runner  => {'running'          => 'running'},
-      :post_execute => {'running'          => 'post_execute'},
-      :finish       => {'*'                => 'finished'},
-      :abort_job    => {'*'                => 'aborting'},
-      :cancel       => {'*'                => 'canceling'},
-      :error        => {'*'                => '*'}
+      :initializing              => {'initialize'                => 'waiting_to_start'},
+      :start                     => {'waiting_to_start'          => 'pre_execute'},
+      :pre_execute               => {'pre_execute'               => 'check_runner_availability'},
+      :check_runner_availability => {'check_runner_availability' => 'execute'},
+      :execute                   => {'execute'                   => 'running'},
+      :poll_runner               => {'running'                   => 'running'},
+      :post_execute              => {'running'                   => 'post_execute'},
+      :finish                    => {'*'                         => 'finished'},
+      :abort_job                 => {'*'                         => 'aborting'},
+      :cancel                    => {'*'                         => 'canceling'},
+      :error                     => {'*'                         => '*'}
     }
   end
 

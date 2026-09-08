@@ -21,4 +21,8 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager < ManageIQ::Prov
       "embedded_terraform"         => N_("Terraform Template")
     }
   end
+
+  def self.orchestration_stack_retire_task_class
+    self::Retire
+  end
 end

@@ -184,7 +184,7 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
   end
 
   describe "#signal" do
-    %w[start pre_execute execute poll_runner post_execute finish abort_job cancel error].each do |signal|
+    %w[start pre_execute check_runner_availability execute poll_runner post_execute finish abort_job cancel error].each do |signal|
       shared_examples_for "allows #{signal} signal" do
         it signal.to_s do
           expect(job).to receive(signal.to_sym)
@@ -217,6 +217,21 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
 
       it_behaves_like "doesn't allow start signal"
       it_behaves_like "allows pre_execute signal"
+      it_behaves_like "doesn't allow execute signal"
+      it_behaves_like "doesn't allow poll_runner signal"
+      it_behaves_like "doesn't allow post_execute signal"
+      it_behaves_like "allows finish signal"
+      it_behaves_like "allows abort_job signal"
+      it_behaves_like "allows cancel signal"
+      it_behaves_like "allows error signal"
+    end
+
+    context "check_runner_availability" do
+      let(:state) { "check_runner_availability" }
+
+      it_behaves_like "doesn't allow start signal"
+      it_behaves_like "doesn't allow pre_execute signal"
+      it_behaves_like "allows check_runner_availability signal"
       it_behaves_like "doesn't allow execute signal"
       it_behaves_like "doesn't allow poll_runner signal"
       it_behaves_like "doesn't allow post_execute signal"
@@ -273,6 +288,40 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job do
     it "moves to state pre_execute" do
       job.signal(:start)
       expect(job.reload.state).to eq("pre_execute")
+    end
+  end
+
+  describe "#check_runner_availability" do
+    let(:state) { "check_runner_availability" }
+
+    context "when runner is available" do
+      before do
+        allow(Terraform::Runner).to receive(:available?).and_return(true)
+      end
+
+      it "calls execute method" do
+        expect(job).to receive(:execute)
+        job.signal(:check_runner_availability)
+      end
+    end
+
+    context "when runner is unavailable" do
+      before { allow(Terraform::Runner).to receive(:available?).and_return(false) }
+
+      it "requeues the check_runner_availability signal" do
+        expect(job).to receive(:queue_signal).with(:check_runner_availability, :deliver_on => kind_of(Time))
+        job.signal(:check_runner_availability)
+      end
+
+      it "logs a warning message" do
+        expect($embedded_terraform_log).to receive(:warn).with("Terraform Runner is not available, retrying...")
+        job.signal(:check_runner_availability)
+      end
+
+      it "does not signal execute" do
+        expect(job).not_to receive(:signal).with(:execute)
+        job.signal(:check_runner_availability)
+      end
     end
   end
 

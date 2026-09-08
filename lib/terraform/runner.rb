@@ -5,14 +5,26 @@ require 'base64'
 
 module Terraform
   class Runner
+    class TemporarilyUnavailable < StandardError; end
+
     class << self
       def available?
-        return @available if defined?(@available)
+        return @available unless @available.nil?
 
-        response = terraform_runner_client.get('ready')
-        @available = response.status == 200 && JSON.parse(response.body)['status'] == 'UP'
-      rescue
-        @available = false
+        begin
+          response = terraform_runner_client.get('ready')
+
+          # Only cache the value if the runner is available.  If unavailable we want to check every
+          # time.  If the runner becomes unavailable after the exception handler will clear this
+          # cached variable.
+          @available = true if response.status == 200 && JSON.parse(response.body)['status'] == 'UP'
+        rescue
+          false
+        end
+      end
+
+      def available_clear_cache
+        @available = nil
       end
 
       # Run TerraformRunner Stack actions with a Terraform template.
@@ -54,6 +66,9 @@ module Terraform
         )
 
         Terraform::Runner::ResponseAsync.new(response.stack_id, response.stack_job_id)
+      rescue Faraday::TimeoutError, Faraday::ConnectionFailed => e
+        available_clear_cache
+        raise TemporarilyUnavailable, "Terraform runner not reachable: #{e.message}"
       end
 
       # Stop/Cancel running terraform-runner job, by stack_id
@@ -73,6 +88,9 @@ module Terraform
             }
           )
         )
+      rescue Faraday::TimeoutError, Faraday::ConnectionFailed => e
+        available_clear_cache
+        raise TemporarilyUnavailable, "Terraform runner not reachable: #{e.message}"
       end
 
       # To simplify clients who want to stop a running stack job, we alias it to call stop_async
@@ -95,6 +113,9 @@ module Terraform
             }
           )
         )
+      rescue Faraday::TimeoutError, Faraday::ConnectionFailed => e
+        available_clear_cache
+        raise TemporarilyUnavailable, "Terraform runner not reachable: #{e.message}"
       end
 
       # To simplify clients who want to fetch stack object from terraform-runner
@@ -114,8 +135,16 @@ module Terraform
           *request.build_json_post_arguments
         )
 
+        if http_response.status == 503
+          available_clear_cache
+          raise TemporarilyUnavailable, "Terraform Runner service is temporarily unavailable (503)"
+        end
+
         $embedded_terraform_log.debug("==== http_response.body: \n #{http_response.body}")
         JSON.parse(http_response.body)
+      rescue Faraday::TimeoutError, Faraday::ConnectionFailed => e
+        available_clear_cache
+        raise TemporarilyUnavailable, "Terraform runner not reachable: #{e.message}"
       end
 
       private
@@ -162,6 +191,11 @@ module Terraform
           action_endpoint,
           *request.build_json_post_arguments
         )
+
+        if http_response.status == 503
+          available_clear_cache
+          raise TemporarilyUnavailable, "Terraform Runner service is temporarily unavailable (503)"
+        end
 
         if request.action_type == ActionType::CREATE
           $embedded_terraform_log.info("terraform-runnner #{action_endpoint} for #{request.options["name"]} is running ...")
