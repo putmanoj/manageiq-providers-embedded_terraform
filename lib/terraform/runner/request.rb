@@ -89,6 +89,10 @@ module Terraform
 
       # encode zip of a template directory
       def encoded_zip_from_directory(template_path)
+        require 'base64'
+        require 'tempfile'
+        require "zip/filesystem"
+
         if !File.directory?(template_path)
           raise "Terraform template path '#{template_path}' does not exits"
         end
