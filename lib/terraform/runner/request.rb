@@ -98,7 +98,7 @@ module Terraform
 
         Tempfile.create(%w[opentofu-runner-payload .zip]) do |zip_file_path|
           $embedded_terraform_log.debug("Create #{zip_file_path}")
-          Zip::File.open(zip_file_path, Zip::File::CREATE) do |zipfile|
+          Zip::File.open(zip_file_path, :create => true) do |zipfile|
             Dir.glob(File.join(dir_path, "/**/*")).select { |fn| File.file?(fn) }.each do |file|
               $embedded_terraform_log.debug("Adding #{file}")
               zipfile.add(file.sub("#{dir_path}/", ''), file)
