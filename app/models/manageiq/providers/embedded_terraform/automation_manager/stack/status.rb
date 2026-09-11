@@ -8,7 +8,12 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack::Status <
 
   def initialize(stack)
     self.stack = stack
-    miq_task   = stack.delete_miq_task.presence || stack.miq_task
+    # If delete_miq_task.present?, then Retire started
+    # else if reconfigure_miq_task.present? then Reconfigure started
+    # else Provision started
+    miq_task   = stack.delete_miq_task.presence ||
+                 stack.reconfigure_miq_task.presence ||
+                 stack.miq_task
 
     super(miq_task.state, miq_task.message)
     self.task_status = miq_task.status
