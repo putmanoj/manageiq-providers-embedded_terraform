@@ -220,16 +220,30 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
     @service_resource = service_resources.find_by(:resource => self)
   end
 
-  def delete_job
-    return @delete_job if defined?(@delete_job)
-
-    @delete_job = ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job.find_by(:target_id => id, :target_class => self.class.name)
-  end
-
   def reconfigure_job
     return @reconfigure_job if defined?(@reconfigure_job)
 
-    @reconfigure_job = ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job.find_by(:target_id => id, :target_class => self.class.name)
+    jobs = ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job
+           .where(:target_id => id, :target_class => self.class.name)
+           .order(:created_on => :desc) # Newest records first
+    target_job = jobs.detect { |job| job.options&.[](:action) == ResourceAction::RECONFIGURE }
+
+    @reconfigure_job = target_job if target_job.present?
+  end
+
+  def reconfigure_miq_task
+    @reconfigure_miq_task ||= reconfigure_job&.miq_task
+  end
+
+  def delete_job
+    return @delete_job if defined?(@delete_job)
+
+    jobs = ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Job
+           .where(:target_id => id, :target_class => self.class.name)
+           .order(:created_on => :desc) # Newest records first
+    target_job = jobs.detect { |job| job.options&.[](:action) == ResourceAction::RETIREMENT }
+
+    @delete_job = target_job if target_job.present?
   end
 
   def delete_miq_task
