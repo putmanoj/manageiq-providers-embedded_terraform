@@ -52,15 +52,13 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
   end
 
   def reconfigurable?
-    # return true only for ServiceEmbeddedTerraform; the stack handles reconfigure via terraform runner.
-    service.instance_of?(ServiceEmbeddedTerraform)
+    service&.validate_reconfigure || false
   end
 
   def raw_reconfigure_stack(task_options = {})
     raise MiqException::Error, "Cannot reconfigure stack, service_resource not found for stack:#{id}" if service_resource.nil?
     raise MiqException::Error, "Cannot reconfigure stack, service_resource.options is empty for stack:#{id}" if service_resource.options.blank?
 
-    terraform_runner_stack_id = service_resource.options["terraform_runner_stack_id"]
     raise MiqException::MiqOrchestrationProvisionError, "Cannot reconfigure stack, did not find terraform_runner_stack_id for stack:#{id}" if terraform_runner_stack_id.blank?
 
     terraform_template = configuration_script_payload
@@ -111,7 +109,6 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
     raise MiqException::Error, "Cannot delete stack, service_resource not found for stack:#{id}" if service_resource.nil?
     raise MiqException::Error, "Cannot delete stack, service_resource.options is empty for stack:#{id}" if service_resource.options.blank?
 
-    terraform_runner_stack_id = service_resource.options["terraform_runner_stack_id"]
     raise MiqException::MiqOrchestrationProvisionError, "Cannot delete stack, did not find terraform_runner_stack_id for stack:#{id}" if terraform_runner_stack_id.blank?
 
     terraform_template = configuration_script_payload
@@ -254,16 +251,18 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
 
   private
 
+  def terraform_runner_stack_id
+    service_resource&.options&.dig("terraform_runner_stack_id")
+  end
+
   def terraform_runner_stack_data
     if service_resource.present?
-      terraform_runner_stack_id = service_resource.options&.dig("terraform_runner_stack_id")
-
       return Terraform::Runner.stack(terraform_runner_stack_id) if terraform_runner_stack_id.present?
     else
       $embedded_terraform_log.warn("Unable to retrieve stack data for stack(#{id}): service_resource is nil")
     end
 
-    # This means, it is a legacy stack, before we introduced the workflow provision
+    # We reached here means, it is a legacy stack, before we introduced the workflow provision
     if miq_task.nil?
       $embedded_terraform_log.warn("Unable to retrieve stack data for stack(#{id}): miq_task is nil")
       return
