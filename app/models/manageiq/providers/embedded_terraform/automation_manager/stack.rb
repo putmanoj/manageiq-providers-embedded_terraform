@@ -146,13 +146,15 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
         delete_job&.poll_runner
       end
     else
-      # when provisioning
+      # when provisioning or reconfiguring
       return unless miq_task
 
       transaction do
-        self.status      = miq_task.state
-        self.start_time  = miq_task.started_on
-        self.finish_time = raw_status.completed? ? miq_task.updated_on : nil
+        current_mig_task = raw_status.mig_task
+
+        self.status      = current_mig_task.state
+        self.start_time  = current_mig_task.started_on
+        self.finish_time = raw_status.completed? ? current_mig_task.updated_on : nil
         save!
       end
     end
