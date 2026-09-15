@@ -72,7 +72,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
     # Parse dialog_* keys the same way ServiceEmbeddedTerraformMixin#input_vars_from_dialog does.
     if task_options[:dialog].present?
       new_input_vars = task_options[:dialog].each_with_object({}) do |(attr, val), h|
-        key = attr.to_s.sub(/\Adialog_/, "")
+        key = attr.to_s.delete_prefix("dialog_")
         h[key] = val unless key.empty?
       end
       job_options[:input_vars] = job_options[:input_vars].to_h.merge(new_input_vars)
@@ -146,13 +146,15 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
         delete_job&.poll_runner
       end
     else
-      # when provisioning
+      # when provisioning or reconfiguring
       return unless miq_task
 
       transaction do
-        self.status      = miq_task.state
-        self.start_time  = miq_task.started_on
-        self.finish_time = raw_status.completed? ? miq_task.updated_on : nil
+        current_miq_task = raw_status.miq_task
+
+        self.status      = current_miq_task.state
+        self.start_time  = current_miq_task.started_on
+        self.finish_time = raw_status.completed? ? current_miq_task.updated_on : nil
         save!
       end
     end
