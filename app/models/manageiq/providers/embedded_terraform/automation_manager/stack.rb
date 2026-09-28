@@ -34,7 +34,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
 
     def raw_create_stack(terraform_template, options = {})
       terraform_template.run(options)
-    rescue => err
+    rescue StandardError => err
       handle_stack_operation_error("create job from template(#{terraform_template.name})", err)
     end
 
@@ -95,7 +95,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
     $embedded_terraform_log.debug("Reconfigure job created: #{reconfigure_job.id}")
 
     reconfigure_job
-  rescue => err
+  rescue StandardError => err
     handle_stack_operation_error("reconfigure stack for stack:#{id}", err)
   end
 
@@ -127,7 +127,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
     $embedded_terraform_log.debug("Delete job created : #{delete_job.id}")
 
     delete_job
-  rescue => err
+  rescue StandardError => err
     handle_stack_operation_error("delete stack for stack:#{id}", err)
   end
 
@@ -139,9 +139,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack < ManageI
     if retiring?
       return if delete_miq_task.nil?
 
-      if raw_status.running? # delete_job&.is_active?
-        delete_job&.poll_runner
-      end
+      delete_job&.poll_runner if raw_status.running? # delete_job&.is_active?
     else
       # when provisioning or reconfiguring
       return unless miq_task
