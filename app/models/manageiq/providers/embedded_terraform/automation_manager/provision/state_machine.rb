@@ -12,8 +12,8 @@ module ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision::Sta
   end
 
   def provision
-    stack_opts = service.stack_opts(ResourceAction::PROVISION, options)
-    stack = stack_klass.create_stack(source.terraform_template, stack_opts.dup)
+    stack_opts = build_stack_opts
+    stack      = stack_klass.create_stack(source.terraform_template, stack_opts.dup)
 
     phase_context[:stack_id] = stack.id
     connect_to_service!(stack, {:name => "Provision", :options => stack_opts})
@@ -67,6 +67,30 @@ module ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Provision::Sta
   end
 
   private
+
+  def build_stack_opts
+    {
+      :action      => ResourceAction::PROVISION,
+      :credentials => credentials_from_options,
+      :input_vars  => input_vars_from_dialog
+    }
+  end
+
+  def credentials_from_options
+    credential_id = get_option(:credential_id)
+    return [] if credential_id.blank?
+
+    [Authentication.find_by(:id => credential_id)&.native_ref].compact
+  end
+
+  def input_vars_from_dialog
+    dialog_option_keys = options.keys.select { |k| k.to_s.start_with?("dialog_") }
+    dialog_options     = options.slice(*dialog_option_keys).merge(options.fetch("dialog", {}))
+
+    dialog_options.to_h do |key, val|
+      [key.to_s.sub(/\A(?:password::)?dialog_/, ''), val]
+    end.except(nil)
+  end
 
   # Updates the service resource with terraform runner stack information
   # that will be used during retirement actions.

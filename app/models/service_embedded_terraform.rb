@@ -1,6 +1,4 @@
 class ServiceEmbeddedTerraform < Service
-  include ServiceEmbeddedTerraformMixin
-
   AUTOMATE_DRIVES = false
 
   def stack(action)

@@ -1,6 +1,4 @@
 class ServiceTerraformTemplate < ServiceGeneric
-  include ServiceEmbeddedTerraformMixin
-
   delegate :terraform_template, :to => :service_template, :allow_nil => true
 
   CONFIG_OPTIONS_WHITELIST = %i[
@@ -183,6 +181,32 @@ class ServiceTerraformTemplate < ServiceGeneric
 
     options[job_option_key(action)] = job_options
     save!
+  end
+
+  def input_vars_from_dialog(service_options = nil, only_dialog: false)
+    service_options = options if service_options.nil?
+
+    return {:input_vars => {}} unless service_options.kind_of?(Hash)
+
+    dialog_options = service_options.fetch(:dialog, {})
+
+    input_vars = dialog_options.each_with_object({}) do |(attr, val), result|
+      attr_str = attr.to_s
+
+      next if only_dialog && !attr_str.start_with?("dialog_", "password::dialog_")
+
+      var_key = attr_str.sub(/\A(?:password::)?dialog_/, '')
+      result[var_key] = val unless var_key.empty?
+    end
+
+    {:input_vars => input_vars}
+  end
+
+  def translate_credentials!(options)
+    options[:credentials] = []
+
+    credential_id = options.delete(:credential_id)
+    options[:credentials] << Authentication.find(credential_id).native_ref if credential_id.present?
   end
 
   def job_option_key(action)
