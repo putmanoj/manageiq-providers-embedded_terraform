@@ -3,6 +3,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack::Status <
   LIVE_STATUS_CREATED = 'create_complete'.freeze
   LIVE_STATUS_FAILED  = 'failed'.freeze
   LIVE_STATUS_DELETED = 'delete_complete'.freeze
+  LIVE_STATUS_DELETE_FAILED = 'delete_failed'.freeze
 
   attr_reader :task_status, :stack, :miq_task, :action
 
@@ -78,7 +79,7 @@ class ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack::Status <
     return [LIVE_STATUS_CREATED, reason || 'OK'] if succeeded?
 
     # if retire failed?
-    return [LIVE_STATUS_FAILED, reason || 'Stack deletion failed'] if error_retiring?
+    return [LIVE_STATUS_DELETE_FAILED, reason || 'Stack deletion failed'] if error_retiring?
 
     # if reconfiguration failed?
     return [LIVE_STATUS_FAILED, reason || 'Stack reconfiguration failed'] if error_reconfiguring?

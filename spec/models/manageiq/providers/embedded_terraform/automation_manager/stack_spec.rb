@@ -16,6 +16,10 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack 
       it "returns a status that is completed" do
         expect(stack.raw_status.completed?).to be_truthy
       end
+
+      it "returns a normalized_status with a reason" do
+        expect(stack.raw_status.normalized_status).to eq(["create_complete", "Task completed successfully"])
+      end
     end
 
     context "with a failed deployment" do
@@ -27,6 +31,75 @@ RSpec.describe ManageIQ::Providers::EmbeddedTerraform::AutomationManager::Stack 
 
       it "returns a normalized_status with a reason" do
         expect(stack.raw_status.normalized_status).to eq(["failed", "Failed to run template"])
+      end
+    end
+
+    context "with a successful reconfiguration" do
+      let(:miq_task) { FactoryBot.create(:miq_task, :state => "Finished", :status => "Ok", :message => "Task completed successfully") }
+      let(:reconfigure_miq_task) { FactoryBot.create(:miq_task, :state => "Finished", :status => "Ok", :message => "Task completed successfully") }
+
+      it "returns a status that is reconfigured" do
+        allow(stack).to receive(:reconfigure_miq_task).and_return(reconfigure_miq_task)
+
+        expect(stack.raw_status.reconfigured?).to be_truthy
+      end
+
+      it "returns a normalized_status with a reason" do
+        allow(stack).to receive(:reconfigure_miq_task).and_return(reconfigure_miq_task)
+
+        expect(stack.raw_status.normalized_status).to eq(["create_complete", "Task completed successfully"])
+      end
+    end
+
+    context "with a failed reconfiguration" do
+      let(:miq_task) { FactoryBot.create(:miq_task, :state => "Finished", :status => "Ok", :message => "Task completed successfully") }
+      let(:reconfigure_miq_task) { FactoryBot.create(:miq_task, :state => "Finished", :status => "Error", :message => "Failed to run template") }
+
+      it "returns a status that is reconfiguration failed" do
+        allow(stack).to receive(:reconfigure_miq_task).and_return(reconfigure_miq_task)
+
+        expect(stack.raw_status.error_reconfiguring?).to be_truthy
+        expect(stack.raw_status.failed?).to be_truthy
+      end
+
+      it "returns a normalized_status with a reason" do
+        allow(stack).to receive(:reconfigure_miq_task).and_return(reconfigure_miq_task)
+
+        expect(stack.raw_status.normalized_status).to eq(["failed", "Failed to run template"])
+      end
+    end
+
+    context "with a successful retirement" do
+      let(:miq_task) { FactoryBot.create(:miq_task, :state => "Finished", :status => "Ok", :message => "Task completed successfully") }
+      let(:delete_miq_task) { FactoryBot.create(:miq_task, :state => "Finished", :status => "Ok", :message => "Task completed successfully") }
+
+      it "returns a status that is retired" do
+        allow(stack).to receive(:delete_miq_task).and_return(delete_miq_task)
+
+        expect(stack.raw_status.retired?).to be_truthy
+      end
+
+      it "returns a normalized_status with a reason" do
+        allow(stack).to receive(:delete_miq_task).and_return(delete_miq_task)
+
+        expect(stack.raw_status.normalized_live_status).to eq(["delete_complete", "Task completed successfully"])
+      end
+    end
+
+    context "with a failed retirement" do
+      let(:miq_task) { FactoryBot.create(:miq_task, :state => "Finished", :status => "Ok", :message => "Task completed successfully") }
+      let(:delete_miq_task) { FactoryBot.create(:miq_task, :state => "Finished", :status => "Error", :message => "Failed to run template") }
+
+      it "returns a status that is error_retiring" do
+        allow(stack).to receive(:delete_miq_task).and_return(delete_miq_task)
+
+        expect(stack.raw_status.error_retiring?).to be_truthy
+      end
+
+      it "returns a normalized_status with a reason" do
+        allow(stack).to receive(:delete_miq_task).and_return(delete_miq_task)
+
+        expect(stack.raw_status.normalized_live_status).to eq(["delete_failed", "Failed to run template"])
       end
     end
   end
